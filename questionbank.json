@@ -1,0 +1,201 @@
+{"demographics": {
+        "likert": [
+            "I feel my background is accurately represented in surveys.",
+            "Demographic diversity strengthens community decision-making.",
+            "I am comfortable sharing personal background information online."
+        ],
+        "open": [
+            "Describe how your background influences your daily decisions.",
+            "How has your cultural identity shaped your outlook on life?",
+            "What aspects of your identity are most important to you?"
+        ],
+        "yesno": [
+            "Do you identify with a specific cultural community?",
+            "Have you ever experienced bias based on your background?"
+        ],
+        "agreement": [
+            "Demographic questions should be optional.",
+            "Representation matters in public data collection."
+        ]
+    },
+    "healthcare": {
+        "likert": [
+            "I am satisfied with the quality of care I receive.",
+            "Healthcare professionals treat me with respect.",
+            "I feel comfortable discussing my symptoms with my doctor."
+        ],
+        "open": [
+            "Describe your most recent experience with a healthcare provider.",
+            "What factors influence your trust in healthcare services?",
+            "How could your healthcare experience be improved?"
+        ],
+        "yesno": [
+            "Do you have a primary care physician?",
+            "Have you delayed care because of cost concerns?"
+        ],
+        "agreement": [
+            "I understand the instructions my doctor gives me.",
+            "Preventive care is as important as treatment."
+        ]
+    },
+    "education": {
+        "likert": [
+            "My education has prepared me well for real-world challenges.",
+            "I find learning more engaging when it connects to my interests.",
+            "Teachers provide constructive feedback that helps me improve."
+        ],
+        "open": [
+            "Describe a learning experience that significantly shaped you.",
+            "What motivates you to continue learning?",
+            "How do you approach learning difficult subjects?"
+        ],
+        "yesno": [
+            "Do you consider yourself a lifelong learner?",
+            "Have you taken any online courses recently?"
+        ],
+        "agreement": [
+            "Practical skills are as important as academic knowledge.",
+            "Education should focus on creativity over memorization."
+        ]
+    },
+    "work_experience": {
+        "likert": [
+            "I feel valued for the work I do.",
+            "My job allows me to use my strengths effectively.",
+            "I have opportunities for professional growth."
+        ],
+        "open": [
+            "Describe what motivates you most in your work.",
+            "What qualities make a workplace supportive?",
+            "How do you balance productivity and well-being?"
+        ],
+        "yesno": [
+            "Do you receive regular feedback from your manager?",
+            "Have you worked remotely in the past year?"
+        ],
+        "agreement": [
+            "Collaboration drives innovation.",
+            "Work-life balance improves performance."
+        ]
+    },
+    "technology": {
+        "likert": [
+            "I enjoy learning about new apps and devices.",
+            "Technology makes my daily life more efficient.",
+            "I am concerned about data privacy when using digital tools."
+        ],
+        "open": [
+            "Describe how technology influences your work or studies.",
+            "What recent innovation has most impacted your life?",
+            "How do you evaluate trust in new technologies?"
+        ],
+        "yesno": [
+            "Do you frequently adopt new technologies early?",
+            "Have you used AI-powered tools in the past year?"
+        ],
+        "agreement": [
+            "Technology should prioritize accessibility for all users.",
+            "Digital literacy is essential in modern society."
+        ]
+    },
+    "consumer_preferences": {
+        "likert": [
+            "I prefer sustainable products even if they cost more.",
+            "Brand reputation influences my purchasing decisions.",
+            "I often read online reviews before making a purchase."
+        ],
+        "open": [
+            "Describe a recent purchase that exceeded your expectations.",
+            "What motivates you to stay loyal to a brand?",
+            "How do you decide between price and quality?"
+        ],
+        "yesno": [
+            "Do you use subscription-based products or services?",
+            "Have you changed your buying habits due to environmental concerns?"
+        ],
+        "agreement": [
+            "Customer feedback should directly influence product design.",
+            "Advertising strongly shapes consumer behavior."
+        ]
+    },
+    "finance": {
+        "likert": [
+            "I feel confident managing my personal finances.",
+            "I actively save for long-term goals.",
+            "Financial education should start in schools."
+        ],
+        "open": [
+            "Describe your approach to budgeting or saving.",
+            "What financial decision are you most proud of?",
+            "How do you plan for unexpected expenses?"
+        ],
+        "yesno": [
+            "Do you regularly review your financial statements?",
+            "Have you ever invested in the stock market?"
+        ],
+        "agreement": [
+            "Financial literacy reduces economic inequality.",
+            "Debt can be useful if managed responsibly."
+        ]
+    },
+    "social_issues": {
+        "likert": [
+            "I believe communities should support equal opportunities for all.",
+            "I actively follow social and political issues.",
+            "Public discourse today is more polarized than before."
+        ],
+        "open": [
+            "Describe an issue you are passionate about and why.",
+            "What role should individuals play in addressing inequality?",
+            "How has social media shaped your views on social change?"
+        ],
+        "yesno": [
+            "Do you participate in community service or activism?",
+            "Have you changed your opinion on a major issue recently?"
+        ],
+        "agreement": [
+            "Constructive dialogue can bridge ideological divides.",
+            "Equality should be prioritized in policy decisions."
+        ]
+    },
+    "environment": {
+        "likert": [
+            "I make conscious efforts to reduce my environmental footprint.",
+            "Climate change is one of the most urgent global problems.",
+            "I support renewable energy adoption in my community."
+        ],
+        "open": [
+            "Describe how you incorporate sustainability in your lifestyle.",
+            "What motivates you to care about environmental issues?",
+            "How should governments encourage sustainable practices?"
+        ],
+        "yesno": [
+            "Do you recycle regularly?",
+            "Have you participated in any environmental initiatives?"
+        ],
+        "agreement": [
+            "Protecting nature should take precedence over industrial growth.",
+            "Environmental awareness should be taught in schools."
+        ]
+    },
+    "lifestyle": {
+        "likert": [
+            "I maintain a healthy work-life balance.",
+            "Physical activity is an important part of my routine.",
+            "I regularly set personal goals for self-improvement."
+        ],
+        "open": [
+            "Describe your ideal weekend or leisure activity.",
+            "What habits have improved your well-being?",
+            "How do you manage stress in your daily life?"
+        ],
+        "yesno": [
+            "Do you meditate or practice mindfulness?",
+            "Have you changed your diet in the past year?"
+        ],
+        "agreement": [
+            "Well-being depends on balance across mind and body.",
+            "Healthy living should be a personal priority."
+        ]
+    }
+}
