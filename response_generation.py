@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
 Response generation script for PolyPersona using local models.
 Generates synthetic persona-based survey responses using smaller models via transformers.
@@ -29,13 +26,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Configuration
 DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
-# Alternative models you can try:
-# "Qwen/Qwen2.5-3B-Instruct"  # Smaller, faster
-# "meta-llama/Llama-3.2-3B-Instruct"
-# "microsoft/Phi-3.5-mini-instruct"
-# "mistralai/Mistral-7B-Instruct-v0.3"
 
 # System prompt template with placeholders
+# Modify this string to customize instructions for generating synthetic responses. 
 SYSTEM_PROMPT_TEMPLATE = """You are PolyPersona, a realistic survey respondent. You will answer questions based on the persona provided below.
 
 Your task is to respond naturally and authentically as this persona would. Consider their background, values, traits, and interests when formulating your response.
@@ -51,6 +44,7 @@ Your task is to respond naturally and authentically as this persona would. Consi
 - For open questions: Provide 2-3 sentences maximum
 - Be natural and conversational, not robotic"""
 
+# Modify this string to customize the user prompt for each question.
 USER_PROMPT_TEMPLATE = """**Domain:** {domain}
 **Question Type:** {question_type}
 **Question:** {question}
@@ -58,8 +52,18 @@ USER_PROMPT_TEMPLATE = """**Domain:** {domain}
 Provide your answer as this persona:"""
 
 
-def format_persona(persona: Dict[str, Any]) -> str:
-    """Format persona dict into readable text for model input."""
+# This function formats the persona dictionary into a string.
+# It follows the persona format used in poly.py
+def format_persona(persona: Dict[str, Any], indent: str = '') -> str:
+    """Format persona dict into readable text.
+    
+    Args:
+        persona: Persona dictionary or string
+        indent: Optional indentation prefix for each line (e.g., '  ')
+    
+    Returns:
+        Formatted persona string
+    """
     if isinstance(persona, str):
         return persona
     
@@ -76,46 +80,18 @@ def format_persona(persona: Dict[str, Any]) -> str:
         lines.append(f"Region: {persona['region']}")
     if 'values' in persona:
         values = persona['values'] if isinstance(persona['values'], list) else [persona['values']]
-        lines.append(f"Values: {', '.join(values)}")
+        lines.append(f"Values: {', '.join(map(str, values))}")
     if 'traits' in persona:
         traits = persona['traits'] if isinstance(persona['traits'], list) else [persona['traits']]
-        lines.append(f"Personality traits: {', '.join(traits)}")
+        lines.append(f"Traits: {', '.join(map(str, traits))}")
     if 'interests' in persona:
         interests = persona['interests'] if isinstance(persona['interests'], list) else [persona['interests']]
-        lines.append(f"Interests: {', '.join(interests)}")
+        lines.append(f"Interests: {', '.join(map(str, interests))}")
     if 'income_bracket' in persona:
         lines.append(f"Income: {persona['income_bracket']}")
     
-    return '\n'.join(lines)
-
-
-def format_persona_for_messages(persona: Dict[str, Any]) -> str:
-    """Format persona dict for messages array (original dataset format)."""
-    if isinstance(persona, str):
-        return persona
-    
-    lines = []
-    if 'age' in persona:
-        lines.append(f"Age: {persona['age']}")
-    if 'gender' in persona:
-        lines.append(f"Gender: {persona['gender']}")
-    if 'occupation' in persona:
-        lines.append(f"Occupation: {persona['occupation']}")
-    if 'education' in persona:
-        lines.append(f"Education: {persona['education']}")
-    if 'region' in persona:
-        lines.append(f"Region: {persona['region']}")
-    if 'values' in persona:
-        values = persona['values'] if isinstance(persona['values'], list) else [persona['values']]
-        lines.append(f"Values: {', '.join(values)}")
-    if 'traits' in persona:
-        traits = persona['traits'] if isinstance(persona['traits'], list) else [persona['traits']]
-        lines.append(f"Traits: {', '.join(traits)}")
-    if 'interests' in persona:
-        interests = persona['interests'] if isinstance(persona['interests'], list) else [persona['interests']]
-        lines.append(f"Interests: {', '.join(interests)}")
-    
-    return '\n  '.join(lines)
+    separator = f'\n{indent}' if indent else '\n'
+    return separator.join(lines)
 
 
 def load_json_file(path: str) -> List[Dict[str, Any]]:
@@ -146,6 +122,7 @@ def build_messages(example: Dict[str, Any]) -> List[Dict[str, str]]:
     persona_text = format_persona(persona)
     
     system_content = SYSTEM_PROMPT_TEMPLATE.format(persona=persona_text)
+    # Fill in the user prompt with domain, question type, and question as they are provided in the dataset.
     user_content = USER_PROMPT_TEMPLATE.format(
         domain=domain,
         question_type=question_type,
@@ -164,7 +141,7 @@ def build_messages_array(example: Dict[str, Any], generated_response: str) -> Li
     question = example.get('question', '')
     domain = example.get('domain', 'general')
     
-    persona_text = format_persona_for_messages(persona)
+    persona_text = format_persona(persona, indent='  ')
     
     system_message = {
         "role": "system",

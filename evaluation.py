@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
 Evaluation script for PolyPersona model.
 Loads fine-tuned model and calculates BLEU, ROUGE, and BERTScore on val/test sets.
@@ -67,22 +64,20 @@ def persona_to_text(persona):
             if isinstance(v, list):
                 v = ", ".join(map(str, v))
             parts.append(f"{k}: {v}")
-        return "; ".join(parts)
+        return "\n".join(parts)
     return str(persona)
 
 
 def build_prompt(persona_text, question):
-    """Build the prompt for generation."""
-    SYSTEM_PROMPT = (
-        "You are a survey respondent. Answer as a consistent persona given below. "
-        "Be concise and realistic. If the question is multiple-choice, pick the most fitting option and give one short reason."
-    )
-    return (
-        f"{SYSTEM_PROMPT}\n"
-        f"Persona: {persona_text}\n"
-        f"Question: {question}\n"
-        f"Answer:"
-    )
+    """Build the prompt for generation (matches training format from poly.py)."""
+    pt = (persona_text or "").strip()
+    q = (question or "").strip()
+    if pt and q:
+        return f"### Persona\n{pt}\n\n### Question\n{q}\n\n### Answer"
+    elif q:
+        return f"### Question\n{q}\n\n### Answer"
+    else:
+        return "### Answer"
 
 
 def load_model_and_tokenizer(model_dir, base_model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0"):
@@ -380,7 +375,7 @@ def main():
                         help="Directory containing model checkpoint")
     parser.add_argument("--base-model", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
                         help="Base model name")
-    parser.add_argument("--data-dir", type=str, default="./generated_data_converted",
+    parser.add_argument("--data-dir", type=str, default="./generated_data",
                         help="Directory containing train/val/test JSON files")
     parser.add_argument("--output-dir", type=str, default="./evaluation_results",
                         help="Directory to save results")
