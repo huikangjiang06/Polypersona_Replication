@@ -72,12 +72,16 @@ def build_prompt(persona_text, question):
     """Build the prompt for generation (matches training format from poly.py)."""
     pt = (persona_text or "").strip()
     q = (question or "").strip()
+    
+    # Add explicit English instruction
+    instruction = "Answer in English only."
+    
     if pt and q:
-        return f"### Persona\n{pt}\n\n### Question\n{q}\n\n### Answer"
+        return f"### Persona\n{pt}\n\n### Question\n{q}\n\n### Instruction\n{instruction}\n\n### Answer"
     elif q:
-        return f"### Question\n{q}\n\n### Answer"
+        return f"### Question\n{q}\n\n### Instruction\n{instruction}\n\n### Answer"
     else:
-        return "### Answer"
+        return f"### Instruction\n{instruction}\n\n### Answer"
 
 
 def load_model_and_tokenizer(model_dir, base_model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0"):
@@ -86,6 +90,10 @@ def load_model_and_tokenizer(model_dir, base_model_name="TinyLlama/TinyLlama-1.1
     tokenizer = AutoTokenizer.from_pretrained(base_model_name, use_safetensors=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    
+    # CRITICAL: Set left padding for decoder-only models during batch generation
+    tokenizer.padding_side = 'left'
+    print(f"Set tokenizer padding_side to 'left' for decoder-only model")
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
@@ -130,14 +138,17 @@ def extract_answer(text):
 
 def generate_responses_batch(prompts, model, tokenizer, max_new_tokens=256):
     """Generate responses for a batch of prompts in parallel."""
-    # Tokenize with padding for batch processing
+    # Tokenize with LEFT padding for decoder-only models
     inputs = tokenizer(
         prompts,
         return_tensors="pt",
-        padding=True,  # Pad to same length for batching
+        padding=True,  # Will use left padding due to tokenizer.padding_side='left'
         truncation=True,
         max_length=1024
     ).to(model.device)
+    
+    # Get the length of input for proper response extraction
+    input_lengths = inputs['attention_mask'].sum(dim=1)
     
     with torch.no_grad():
         outputs = model.generate(
@@ -150,11 +161,15 @@ def generate_responses_batch(prompts, model, tokenizer, max_new_tokens=256):
             eos_token_id=tokenizer.eos_token_id,
         )
     
-    # Decode all responses
-    texts = tokenizer.batch_decode(outputs, skip_special_tokens=True)
+    # Decode only the generated part (skip input prompt)
+    responses = []
+    for i, output in enumerate(outputs):
+        # Skip the input tokens to get only the generated response
+        generated_tokens = output[input_lengths[i]:]
+        response = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+        responses.append(extract_answer(response))
     
-    # Extract answer parts
-    return [extract_answer(text) for text in texts]
+    return responses
 
 
 def calculate_bleu(reference, prediction):
@@ -405,9 +420,9 @@ def main():
                         help="Directory containing model checkpoint")
     parser.add_argument("--base-model", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
                         help="Base model name")
-    parser.add_argument("--data-dir", type=str, default="./generated_data",
+    parser.add_argument("--data-dir", type=str, default="./generated_data_2",
                         help="Directory containing train/val/test JSON files")
-    parser.add_argument("--output-dir", type=str, default="./evaluation_results",
+    parser.add_argument("--output-dir", type=str, default="./evaluation_results_2",
                         help="Directory to save results")
     parser.add_argument("--splits", nargs="+", default=["val", "test"],
                         help="Which splits to evaluate (default: val, test)")

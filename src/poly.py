@@ -1,7 +1,19 @@
 
+import os
+from pathlib import Path
+
+# Set Hugging Face cache directory
+HF_CACHE_DIR = '/proj/arise/arise/hj2742'
+os.environ['HF_HOME'] = HF_CACHE_DIR
+os.environ['TRANSFORMERS_CACHE'] = HF_CACHE_DIR
+os.environ['HF_HUB_CACHE'] = HF_CACHE_DIR
+
+# Create cache directory if it doesn't exist
+Path(HF_CACHE_DIR).mkdir(parents=True, exist_ok=True)
+
 from dataclasses import dataclass, asdict
 from typing import List, Optional
-import os, math, random, json, pathlib, time
+import math, random, json, pathlib, time
 import pandas as pd
 import numpy as np
 
@@ -9,9 +21,9 @@ import numpy as np
 class Config:
     # Data
     dataset_dir: str = "./data/personaverse"   
-    train_file: str = "/home/hj2742/Polypersona/generated_data_converted/train.json"
-    val_file: str = "/home/hj2742/Polypersona/generated_data_converted/val.json"
-    test_file: str = "/home/hj2742/Polypersona/generated_data_converted/test.json"
+    train_file: str = "./generated_data_2/train.json"
+    val_file: str = "./generated_data_2/val.json"
+    test_file: str = "./generated_data_2/test.json"
     text_fields: dict = None  
 
     # Model
@@ -30,8 +42,8 @@ class Config:
     output_dir: str = "./outputs/personaverse"
     seed: int = 42
     num_epochs: int = 3
-    per_device_train_batch_size: int = 4
-    per_device_eval_batch_size: int = 4
+    per_device_train_batch_size: int = 64
+    per_device_eval_batch_size: int = 64
     gradient_accumulation_steps: int = 4
     learning_rate: float = 2e-4
     weight_decay: float = 1e-3
@@ -159,7 +171,7 @@ def load_json_file(path: str) -> list:
 
 def load_split(cfg: Config, split: str) -> list:
     file_map = {"train": cfg.train_file, "val": cfg.val_file, "test": cfg.test_file}
-    path = os.path.join(cfg.dataset_dir, file_map[split])
+    path = file_map[split]  # Use the file path directly, don't join with dataset_dir
     data = load_json_file(path)
     # optional downsample per domain for quick experiments
     if cfg.max_samples_per_domain:

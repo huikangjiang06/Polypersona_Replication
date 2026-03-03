@@ -37,19 +37,19 @@ Your task is to respond naturally and authentically as this persona would. Consi
 {persona}
 
 **Instructions:**
+- Answer ONLY in English (no other languages)
 - Answer concisely but realistically
 - Stay consistent with the persona's characteristics
 - For yes/no questions: Give a clear answer with one brief reason
 - For likert scale questions: State your position and justify briefly
-- For open questions: Provide 2-3 sentences maximum
-- Be natural and conversational, not robotic"""
+- For ALL questions: answer with ONLY ONE SHORT sentence, no exceeding 25 words."""
 
 # Modify this string to customize the user prompt for each question.
 USER_PROMPT_TEMPLATE = """**Domain:** {domain}
 **Question Type:** {question_type}
 **Question:** {question}
 
-Provide your answer as this persona:"""
+Provide your answer in English as this persona:"""
 
 
 # This function formats the persona dictionary into a string.
@@ -378,7 +378,7 @@ def main():
     parser.add_argument(
         "--output-dir", 
         type=str, 
-        default="./synthetic_data",
+        default="./generated_data_2",
         help="Directory to save synthetic responses (in original dataset format)"
     )
     parser.add_argument(
@@ -396,7 +396,7 @@ def main():
     parser.add_argument(
         "--temperature", 
         type=float, 
-        default=0.9,
+        default=0.3,
         help="Sampling temperature (higher = more diverse)"
     )
     parser.add_argument(
@@ -408,7 +408,7 @@ def main():
     parser.add_argument(
         "--top-p", 
         type=float, 
-        default=0.95,
+        default=0.7,
         help="Nucleus sampling top-p"
     )
     parser.add_argument(
@@ -420,7 +420,7 @@ def main():
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=8,
+        default=32,
         help="Batch size for generation (4-16 recommended depending on model size)"
     )
     parser.add_argument(
