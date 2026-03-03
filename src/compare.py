@@ -65,17 +65,30 @@ def main():
     print(f"Loaded {len(prediction_data)} prediction examples")
     
     # Create dictionary for quick lookup by ID
-    reference_dict = {item['id']: item.get('reference', '') for item in reference_data}
+    reference_dict = {}
+    user_context_dict = {}
+    for item in reference_data:
+        item_id = item['id']
+        reference_dict[item_id] = item.get('reference', '')
+        # Extract user context from messages
+        messages = item.get('messages', [])
+        user_context = ''
+        if len(messages) > 1 and messages[1].get('role') == 'user':
+            user_context = messages[1].get('content', '')
+        user_context_dict[item_id] = user_context
+    
     prediction_dict = {item['id']: item.get('prediction', '') for item in prediction_data}
     
     # Match references and predictions by ID
     rows = []
     for item_id in reference_dict.keys():
+        user_context = user_context_dict.get(item_id, '')
         reference = reference_dict.get(item_id, '')
         prediction = prediction_dict.get(item_id, '')
         
         rows.append({
             'id': item_id,
+            'user_context': user_context,
             'reference': reference,
             'prediction': prediction
         })
@@ -83,9 +96,9 @@ def main():
     # Create DataFrame
     df = pd.DataFrame(rows)
     
-    # Save to CSV
+    # Save to CSV with proper quoting to preserve newlines within cells
     output_path = Path(args.eval_dir) / f"compare_{args.split}.csv"
-    df.to_csv(output_path, index=False, encoding='utf-8')
+    df.to_csv(output_path, index=False, encoding='utf-8', lineterminator='\n')
     
     print(f"\nSaved comparison to: {output_path}")
     print(f"Total rows: {len(df)}")
