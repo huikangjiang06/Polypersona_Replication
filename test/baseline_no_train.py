@@ -5,6 +5,9 @@ Loads fine-tuned model and calculates BLEU, ROUGE, and BERTScore on val/test set
 
 import os
 import json
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
+
 import torch
 import argparse
 from pathlib import Path
@@ -80,9 +83,11 @@ def build_prompt(persona_text, question):
         return "### Answer"
 
 
-def load_model_and_tokenizer(model_dir, base_model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0"):
-    """Load base model + LoRA adapter using safetensors format."""
-    print(f"Loading base model: {base_model_name}")
+def load_model_and_tokenizer(base_model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0"):
+    """Load untrained base model from HuggingFace for baseline evaluation."""
+    print(f"Loading UNTRAINED base model: {base_model_name}")
+    print("NOTE: This is a baseline evaluation - no fine-tuned weights will be loaded")
+    
     tokenizer = AutoTokenizer.from_pretrained(base_model_name, use_safetensors=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -90,32 +95,16 @@ def load_model_and_tokenizer(model_dir, base_model_name="TinyLlama/TinyLlama-1.1
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
     
-    # Load base model with safetensors - on GPU if available for compatibility with PEFT
-    base_model = AutoModelForCausalLM.from_pretrained(
+    # Load untrained base model
+    model = AutoModelForCausalLM.from_pretrained(
         base_model_name,
         torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-        device_map='auto',
-        use_safetensors=True  # Force safetensors format
+        device_map="auto",  # Automatically distribute across all available GPUs
+        use_safetensors=True
     )
     
-    # Load LoRA adapter if available
-    adapter_path = Path(model_dir)
-    if adapter_path.exists() and (adapter_path / "adapter_config.json").exists():
-        print(f"Loading LoRA adapter from: {adapter_path}")
-        try:
-            model = PeftModel.from_pretrained(base_model, str(adapter_path))
-            print("Merging LoRA weights...")
-            model = model.merge_and_unload()  # Merge for faster inference
-            print("LoRA adapter loaded and merged successfully")
-        except Exception as e:
-            print(f"ERROR loading adapter: {e}")
-            print("Falling back to base model only")
-            model = base_model
-    else:
-        print(f"WARNING: No adapter found at {adapter_path}, using base model only")
-        model = base_model
-    
     model.eval()
+    print("Untrained model loaded successfully")
     return model, tokenizer
 
 
@@ -220,7 +209,7 @@ def calculate_bertscore_batch(references, predictions, model_type='bert-base-unc
         return {'precision': 0.0, 'recall': 0.0, 'f1': 0.0}
 
 
-def evaluate_split(data, model, tokenizer, split_name, batch_size=16, skip_bertscore=False):
+def evaluate_split(data, model, tokenizer, split_name, batch_size=32, skip_bertscore=False):
     """Evaluate model on a data split with batch generation."""
     print(f"\n{'='*60}")
     print(f"Evaluating {split_name} set ({len(data)} examples)")
@@ -400,28 +389,26 @@ def save_results(overall_results, domain_results, detailed_results, output_dir):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Evaluate PolyPersona model")
-    parser.add_argument("--model-dir", type=str, default="./outputs/personaverse",
-                        help="Directory containing model checkpoint")
+    parser = argparse.ArgumentParser(description="Evaluate UNTRAINED baseline model (no fine-tuning)")
     parser.add_argument("--base-model", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-                        help="Base model name")
+                        help="Base model name to load from HuggingFace")
     parser.add_argument("--data-dir", type=str, default="./generated_data",
                         help="Directory containing train/val/test JSON files")
-    parser.add_argument("--output-dir", type=str, default="./evaluation_results",
-                        help="Directory to save results")
+    parser.add_argument("--output-dir", type=str, default="./evaluation_results_baseline",
+                        help="Directory to save baseline results")
     parser.add_argument("--splits", nargs="+", default=["val", "test"],
                         help="Which splits to evaluate (default: val, test)")
     parser.add_argument("--max-examples", type=int, default=None,
                         help="Maximum examples per split (for testing)")
-    parser.add_argument("--batch-size", type=int, default=16,
+    parser.add_argument("--batch-size", type=int, default=32,
                         help="Batch size for generation and evaluation (16-32 recommended)")
     parser.add_argument("--skip-bertscore", action="store_true",
                         help="Skip BERTScore calculation (useful if torch<2.6)")
     
     args = parser.parse_args()
     
-    # Load model
-    model, tokenizer = load_model_and_tokenizer(args.model_dir, args.base_model)
+    # Load untrained model
+    model, tokenizer = load_model_and_tokenizer(args.base_model)
     
     # Evaluate each split
     overall_results = []

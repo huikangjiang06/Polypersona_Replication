@@ -172,7 +172,7 @@ def load_model(model_name: str, device: str = "auto"):
     # Load model in FP16 for efficiency
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        device_map=device,
+        device_map='auto',
         trust_remote_code=True,
         torch_dtype=torch.float16
     )
