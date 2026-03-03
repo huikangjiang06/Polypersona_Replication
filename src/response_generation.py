@@ -183,76 +183,68 @@ def load_model(model_name: str, device: str = "auto"):
     return model, tokenizer
 
 
-def generate_response(
-    example: Dict[str, Any],
+def extract_answer(text):
+    """Extract answer part from generated text if it contains markers."""
+    # Truncate to only keep content after "### Answer"
+    if "### Answer" in text:
+        return text.split("### Answer", 1)[1].strip()
+    return text
+
+
+def generate_responses_batch(
+    examples: List[Dict[str, Any]],
     model,
     tokenizer,
-    model_name: str,
     temperature: float = 0.9,
     max_new_tokens: int = 256,
     top_p: float = 0.95
-) -> Dict[str, Any]:
-    """Generate a single response using the model."""
-    messages = build_messages(example)
+) -> List[str]:
+    """Generate responses for a batch of examples in parallel."""
+    # Build messages for all examples
+    all_messages = [build_messages(ex) for ex in examples]
     
-    try:
-        # Apply chat template
+    # Apply chat template to all
+    prompts = []
+    for messages in all_messages:
         prompt = tokenizer.apply_chat_template(
             messages,
             tokenize=False,
             add_generation_prompt=True
         )
-        
-        # Tokenize
-        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048)
-        inputs = {k: v.to(model.device) for k, v in inputs.items()}
-        
-        # Generate
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-                top_p=top_p,
-                do_sample=True,
-                pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
-                eos_token_id=tokenizer.eos_token_id
-            )
-        
-        # Decode
-        generated_text = tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True).strip()
-        
-        # Build messages array in original format
-        messages_array = build_messages_array(example, generated_text)
-        
-        # Return in original dataset format
-        return {
-            'id': example.get('id', ''),
-            'domain': example.get('domain', ''),
-            'persona': example.get('persona', {}),
-            'question': example.get('question', ''),
-            'question_type': example.get('question_type', 'open'),
-            'reference': generated_text,  # Generated response becomes the new reference
-            'messages': messages_array,
-            'meta': example.get('meta', {})
-        }
-    except Exception as e:
-        print(f"\nError generating for {example.get('id', 'unknown')}: {e}")
-        # Return with original reference if generation failed
-        fallback_reference = example.get('reference', '')
-        messages_array = build_messages_array(example, fallback_reference)
-        
-        return {
-            'id': example.get('id', ''),
-            'domain': example.get('domain', ''),
-            'persona': example.get('persona', {}),
-            'question': example.get('question', ''),
-            'question_type': example.get('question_type', 'open'),
-            'reference': fallback_reference,
-            'messages': messages_array,
-            'meta': example.get('meta', {}),
-            '_error': str(e)  # Store error but don't break format
-        }
+        prompts.append(prompt)
+    
+    # Tokenize with padding
+    inputs = tokenizer(
+        prompts,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=2048
+    )
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
+    
+    # Generate
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            do_sample=True,
+            pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+            eos_token_id=tokenizer.eos_token_id
+        )
+    
+    # Decode - only the generated part (skip input tokens)
+    generated_texts = []
+    for i, output in enumerate(outputs):
+        input_length = inputs['input_ids'][i].shape[0]
+        generated = tokenizer.decode(output[input_length:], skip_special_tokens=True).strip()
+        # Apply answer extraction
+        generated = extract_answer(generated)
+        generated_texts.append(generated)
+    
+    return generated_texts
 
 
 def generate_batch(
@@ -263,20 +255,57 @@ def generate_batch(
     temperature: float,
     max_new_tokens: int,
     top_p: float,
-    batch_size: int = 1
+    batch_size: int = 8
 ) -> List[Dict[str, Any]]:
-    """Generate responses for a batch of examples."""
+    """Generate responses for examples using batch processing."""
     results = []
     
-    for example in tqdm(examples, desc="Generating responses"):
-        result = generate_response(
-            example, model, tokenizer, model_name,
-            temperature, max_new_tokens, top_p
-        )
-        results.append(result)
+    # Process in batches
+    for i in tqdm(range(0, len(examples), batch_size), desc="Generating responses"):
+        batch = examples[i:i+batch_size]
+        
+        try:
+            # Generate for batch
+            generated_texts = generate_responses_batch(
+                batch, model, tokenizer, temperature, max_new_tokens, top_p
+            )
+            
+            # Build results for each example
+            for example, generated_text in zip(batch, generated_texts):
+                messages_array = build_messages_array(example, generated_text)
+                
+                results.append({
+                    'id': example.get('id', ''),
+                    'domain': example.get('domain', ''),
+                    'persona': example.get('persona', {}),
+                    'question': example.get('question', ''),
+                    'question_type': example.get('question_type', 'open'),
+                    'reference': generated_text,
+                    'messages': messages_array,
+                    'meta': example.get('meta', {})
+                })
+        
+        except Exception as e:
+            print(f"\nBatch generation failed: {e}")
+            # Fallback: use empty or original references
+            for example in batch:
+                fallback_reference = example.get('reference', '')
+                messages_array = build_messages_array(example, fallback_reference)
+                
+                results.append({
+                    'id': example.get('id', ''),
+                    'domain': example.get('domain', ''),
+                    'persona': example.get('persona', {}),
+                    'question': example.get('question', ''),
+                    'question_type': example.get('question_type', 'open'),
+                    'reference': fallback_reference,
+                    'messages': messages_array,
+                    'meta': example.get('meta', {}),
+                    '_error': str(e)
+                })
         
         # Clear cache periodically
-        if len(results) % 10 == 0:
+        if len(results) % 50 == 0:
             torch.cuda.empty_cache()
     
     return results
@@ -389,6 +418,12 @@ def main():
         help="Limit number of examples per split (for testing)"
     )
     parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=8,
+        help="Batch size for generation (4-16 recommended depending on model size)"
+    )
+    parser.add_argument(
         "--device",
         type=str,
         default="auto",
@@ -402,6 +437,7 @@ def main():
     print(f"Model: {args.model}")
     print(f"Cache directory: {HF_CACHE_DIR}")
     print(f"Device: {args.device}")
+    print(f"Batch size: {args.batch_size}")
     print(f"Temperature: {args.temperature}")
     print(f"Max tokens: {args.max_new_tokens}")
     print(f"="*60)
@@ -437,7 +473,8 @@ def main():
             args.model,
             args.temperature,
             args.max_new_tokens,
-            args.top_p
+            args.top_p,
+            args.batch_size
         )
         
         all_results[split] = results
