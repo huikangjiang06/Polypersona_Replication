@@ -3,3 +3,4 @@
 - **Generate Synthetic Response**: response_generation.py
 - **Training Model**: poly.py (from the original repo)
 - **Evalute Model**: evaluation.py
+- **Compare Referencea and Prediction**: compare.py

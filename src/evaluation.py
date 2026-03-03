@@ -136,8 +136,10 @@ def generate_response(prompt, model, tokenizer, max_new_tokens=256):
     
     text = tokenizer.decode(outputs[0], skip_special_tokens=True)
     
-    # Extract answer part
-    if "Answer:" in text:
+    # Extract answer part - check for "### Answer" first, then fall back to "Answer:"
+    if "### Answer" in text:
+        text = text.split("### Answer", 1)[1].strip()
+    elif "Answer:" in text:
         text = text.split("Answer:", 1)[1].strip()
     
     return text
