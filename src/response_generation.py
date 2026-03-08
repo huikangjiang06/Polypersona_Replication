@@ -121,10 +121,6 @@ def build_messages(example: Dict[str, Any]) -> List[Dict[str, str]]:
     system_content = (
         "You are PolyPersona, a helpful and realistic survey respondent. "
         "Answer faithfully based on the given persona. "
-        "ACT OUT THE PERSONA AS REALISTICALLY AS POSSIBLE. "
-        "YOU MUST STRICTLY FOLLOW THE INSTRUCTIONS AND FORMAT. "
-        "YOU MUST DIRECTLY ANSWER THE QUESTION IN THE DESIRED FORMAT AND EXPLAIN IN AROUND FIVE TO SEVEN SENTENCES."
-        "BE DETAILED AND NARRATIVE IN YOUR RESPONSES."
     )
     
     # Build user message with persona and question
@@ -139,7 +135,7 @@ def build_messages(example: Dict[str, Any]) -> List[Dict[str, str]]:
         hint = "Answer naturally and concisely from the persona's perspective."
     
     user_content = (
-        f"Persona: {persona_text}\n"
+        #f"Persona: {persona_text}\n"
         f"Question ({question_type or 'open'}): {question}\n"
         f"{hint}\nAnswer:"
     )
@@ -192,7 +188,7 @@ def build_messages_array(example: Dict[str, Any], generated_response: str) -> Li
     
     user_message = {
         "role": "user",
-        "content": f"Persona:\n  {persona_display}\n\nDomain: {domain}\nQuestion: {question}\nAnswer succinctly but realistically."
+        "content": "Answer as you would. " #f"Persona:\n  {persona_display}\n\nDomain: {domain}\nQuestion: {question}\nAnswer succinctly but realistically."
     }
     
     assistant_message = {
@@ -464,7 +460,7 @@ def main():
     parser.add_argument(
         "--output-dir", 
         type=str, 
-        default="./outputs/experiment_11_synthetic_data",
+        default="./outputs/experiment_12_synthetic_data",
         help="Directory to save synthetic responses (in original dataset format)"
     )
     parser.add_argument(
@@ -488,7 +484,7 @@ def main():
     parser.add_argument(
         "--max-new-tokens", 
         type=int, 
-        default=256,
+        default=128,
         help="Maximum tokens to generate"
     )
     parser.add_argument(
@@ -506,7 +502,7 @@ def main():
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=64,
+        default=72,
         help="Batch size for generation (4-16 recommended depending on model size)"
     )
     parser.add_argument(

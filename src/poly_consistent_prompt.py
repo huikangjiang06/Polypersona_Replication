@@ -21,9 +21,9 @@ import numpy as np
 class Config:
     # Data
     dataset_dir: str = "./data/personaverse"   
-    train_file: str = "./outputs/experiment_4_synthetic_data/train.json"
-    val_file: str = "./outputs/experiment_4_synthetic_data/val.json"
-    test_file: str = "./outputs/experiment_4_synthetic_data/test.json"
+    train_file: str = "./outputs/experiment_12_synthetic_data/train.json"
+    val_file: str = "./outputs/experiment_12_synthetic_data/val.json"
+    test_file: str = "./outputs/experiment_12_synthetic_data/test.json"
     text_fields: dict = None  
 
     # Model
@@ -39,11 +39,11 @@ class Config:
     lora_target_modules: List[str] = None  
 
     # Training
-    output_dir: str = "./outputs/experiment_4_personaverse"
+    output_dir: str = "./outputs/experiment_12_personaverse"
     seed: int = 42
     num_epochs: int = 3
-    per_device_train_batch_size: int = 64
-    per_device_eval_batch_size: int = 64
+    per_device_train_batch_size: int = 72
+    per_device_eval_batch_size: int = 72
     gradient_accumulation_steps: int = 1
     learning_rate: float = 2e-4
     weight_decay: float = 1e-3

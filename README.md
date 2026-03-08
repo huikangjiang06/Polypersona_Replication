@@ -139,11 +139,12 @@ def build_prompt(persona_text, question):
     - Reference Model: Qwen/Qwen2.5-7B-Instruct
     - Student Model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
         - Trained on only "demographics" "healthcare" "education" "work_experience" "technology","consumer_preferences","finance"
+        - This keeps the data quantity roughly constant
     - Outputs: 
         - ./outputs/experiment_4_synthetic_data (redoed train-val-test split)
         - ./outputs/experiment_4_personaverse
         - ./outputs/experiment_4_results
-    - 
+    - The drop of performance is not large, generally from 0.65 -> 0.64
     
 5. **Experiment 5 - 9**:
     - Tried deocding with temperture = 0.01, 0.2, 0.4, 0.8, 1.0
@@ -165,3 +166,14 @@ def build_prompt(persona_text, question):
     - This experiment has the BEST results, BUT most likely because:
         - Longer responses catches more universal semantics, not the specific wording.
         - Longer responses give the models more training data, so it better distills the teacher model
+
+8. **Experiment 12**:
+    - Let's see if the improvment in performance is due to the student learning the personalities, or just mimicing teacher model. 
+    - Reference Model: Qwen/Qwen2.5-7B-Instruct
+        - We remove the persona from the prompt. Keeping everything else the same. 
+    - Student Model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+    - Outputs:
+        - The BERTScore is the highest. 
+    - Quick Sanity Check:
+        - Experiment 12 train.json has 88008 words in all of its references
+        - Experiment 1 train.json has  80893 words in all of its references
