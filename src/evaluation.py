@@ -16,6 +16,7 @@ import warnings
 
 # Suppress warnings
 os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = "0,1"
 warnings.filterwarnings('ignore')
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -55,7 +56,9 @@ def load_json_file(path):
 
 
 def persona_to_text(persona):
-    """Convert persona dict to readable text."""
+    """Convert persona dict to readable text (semicolon-separated).
+    Matches the format used in poly_consistent_prompt.py.
+    """
     if isinstance(persona, str):
         return persona
     if isinstance(persona, dict):
@@ -64,24 +67,42 @@ def persona_to_text(persona):
             if isinstance(v, list):
                 v = ", ".join(map(str, v))
             parts.append(f"{k}: {v}")
-        return "\n".join(parts)
+        return "; ".join(parts)  # Semicolon-separated to match training format
     return str(persona)
 
 
-def build_prompt(persona_text, question):
-    """Build the prompt for generation (matches training format from poly.py)."""
-    pt = (persona_text or "").strip()
-    q = (question or "").strip()
+def build_prompt(persona_text, question, qtype=None):
+    """Build prompt matching poly_consistent_prompt.py format.
     
-    # Add explicit English instruction
-    instruction = "Answer in English only."
+    Args:
+        persona_text: Formatted persona string
+        question: Question text
+        qtype: Question type (yesno, likert, agreement, open)
     
-    if pt and q:
-        return f"### Persona\n{pt}\n\n### Question\n{q}\n\n### Instruction\n{instruction}\n\n### Answer"
-    elif q:
-        return f"### Question\n{q}\n\n### Instruction\n{instruction}\n\n### Answer"
+    Returns:
+        Formatted prompt string
+    """
+    SYSTEM_PROMPT = (
+        "You are PolyPersona, a helpful and realistic survey respondent. "
+        "Answer faithfully based on the given persona."
+    )
+
+    # short behavioral hints per question type
+    if qtype == "yesno":
+        hint = "Respond with 'Yes.' or 'No.' and add one short reason."
+    elif qtype == "likert":
+        hint = "Respond on a 5-point Likert scale (Strongly Disagree → Strongly Agree) and justify briefly."
+    elif qtype == "agreement":
+        hint = "Indicate your level of agreement and explain in one line."
     else:
-        return f"### Instruction\n{instruction}\n\n### Answer"
+        hint = "Answer naturally and concisely from the persona's perspective."
+
+    return (
+        f"{SYSTEM_PROMPT}\n\n"
+        f"Persona: {persona_text}\n"
+        f"Question ({qtype or 'open'}): {question}\n"
+        f"{hint}\nAnswer:"
+    )
 
 
 def load_model_and_tokenizer(model_dir, base_model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0"):
@@ -260,7 +281,8 @@ def evaluate_split(data, model, tokenizer, split_name, batch_size=16, skip_berts
         for ex in batch:
             persona_text = persona_to_text(ex.get('persona', {}))
             question = ex.get('question', '')
-            prompt = build_prompt(persona_text, question)
+            question_type = ex.get('question_type', 'open')
+            prompt = build_prompt(persona_text, question, question_type)
             prompts.append(prompt)
             batch_metadata.append({
                 'id': ex.get('id', ''),
@@ -416,19 +438,19 @@ def save_results(overall_results, domain_results, detailed_results, output_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate PolyPersona model")
-    parser.add_argument("--model-dir", type=str, default="./outputs/personaverse",
+    parser.add_argument("--model-dir", type=str, default="./outputs/experiment_1_personaverse",
                         help="Directory containing model checkpoint")
     parser.add_argument("--base-model", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
                         help="Base model name")
-    parser.add_argument("--data-dir", type=str, default="./generated_data_2",
+    parser.add_argument("--data-dir", type=str, default="./outputs/experiment_1_synthetic_data",
                         help="Directory containing train/val/test JSON files")
-    parser.add_argument("--output-dir", type=str, default="./evaluation_results_2",
+    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_1_results",
                         help="Directory to save results")
     parser.add_argument("--splits", nargs="+", default=["val", "test"],
                         help="Which splits to evaluate (default: val, test)")
     parser.add_argument("--max-examples", type=int, default=None,
                         help="Maximum examples per split (for testing)")
-    parser.add_argument("--batch-size", type=int, default=16,
+    parser.add_argument("--batch-size", type=int, default=72,
                         help="Batch size for generation and evaluation (16-32 recommended)")
     parser.add_argument("--skip-bertscore", action="store_true",
                         help="Skip BERTScore calculation (useful if torch<2.6)")

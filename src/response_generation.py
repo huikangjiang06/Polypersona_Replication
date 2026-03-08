@@ -18,6 +18,7 @@ HF_CACHE_DIR = '/proj/arise/arise/hf_cache'
 os.environ['HF_HOME'] = HF_CACHE_DIR
 os.environ['TRANSFORMERS_CACHE'] = HF_CACHE_DIR
 os.environ['HF_HUB_CACHE'] = HF_CACHE_DIR
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 # Create cache directory if it doesn't exist
 Path(HF_CACHE_DIR).mkdir(parents=True, exist_ok=True)
@@ -27,71 +28,29 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 # Configuration
 DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 
-# System prompt template with placeholders
-# Modify this string to customize instructions for generating synthetic responses. 
-SYSTEM_PROMPT_TEMPLATE = """You are PolyPersona, a realistic survey respondent. You will answer questions based on the persona provided below.
-
-Your task is to respond naturally and authentically as this persona would. Consider their background, values, traits, and interests when formulating your response.
-
-**Persona:**
-{persona}
-
-**Instructions:**
-- Answer ONLY in English (no other languages)
-- Answer concisely but realistically
-- Stay consistent with the persona's characteristics
-- For yes/no questions: Give a clear answer with one brief reason
-- For likert scale questions: State your position and justify briefly
-- For ALL questions: answer with ONLY ONE SHORT sentence, no exceeding 25 words."""
-
-# Modify this string to customize the user prompt for each question.
-USER_PROMPT_TEMPLATE = """**Domain:** {domain}
-**Question Type:** {question_type}
-**Question:** {question}
-
-Provide your answer in English as this persona:"""
-
 
 # This function formats the persona dictionary into a string.
-# It follows the persona format used in poly.py
-def format_persona(persona: Dict[str, Any], indent: str = '') -> str:
-    """Format persona dict into readable text.
+# Matches persona_to_text from poly_consistent_prompt.py
+def persona_to_text(persona) -> str:
+    """Format persona dict into readable text (semicolon-separated).
+    Matches the format used in poly_consistent_prompt.py.
     
     Args:
         persona: Persona dictionary or string
-        indent: Optional indentation prefix for each line (e.g., '  ')
     
     Returns:
-        Formatted persona string
+        Formatted persona string (semicolon-separated)
     """
     if isinstance(persona, str):
         return persona
-    
-    lines = []
-    if 'age' in persona:
-        lines.append(f"Age: {persona['age']}")
-    if 'gender' in persona:
-        lines.append(f"Gender: {persona['gender']}")
-    if 'occupation' in persona:
-        lines.append(f"Occupation: {persona['occupation']}")
-    if 'education' in persona:
-        lines.append(f"Education: {persona['education']}")
-    if 'region' in persona:
-        lines.append(f"Region: {persona['region']}")
-    if 'values' in persona:
-        values = persona['values'] if isinstance(persona['values'], list) else [persona['values']]
-        lines.append(f"Values: {', '.join(map(str, values))}")
-    if 'traits' in persona:
-        traits = persona['traits'] if isinstance(persona['traits'], list) else [persona['traits']]
-        lines.append(f"Traits: {', '.join(map(str, traits))}")
-    if 'interests' in persona:
-        interests = persona['interests'] if isinstance(persona['interests'], list) else [persona['interests']]
-        lines.append(f"Interests: {', '.join(map(str, interests))}")
-    if 'income_bracket' in persona:
-        lines.append(f"Income: {persona['income_bracket']}")
-    
-    separator = f'\n{indent}' if indent else '\n'
-    return separator.join(lines)
+    if isinstance(persona, dict):
+        parts = []
+        for k, v in persona.items():
+            if isinstance(v, list):
+                v = ", ".join(map(str, v))
+            parts.append(f"{k}: {v}")
+        return "; ".join(parts)
+    return str(persona)
 
 
 def load_json_file(path: str) -> List[Dict[str, Any]]:
@@ -112,21 +71,77 @@ def load_json_file(path: str) -> List[Dict[str, Any]]:
     return records
 
 
+def build_prompt(persona_text: str, question: str, qtype: str = None) -> str:
+    """Build prompt matching poly_consistent_prompt.py format.
+    
+    Args:
+        persona_text: Formatted persona string
+        question: Question text
+        qtype: Question type (yesno, likert, agreement, open)
+    
+    Returns:
+        Formatted prompt string
+    """
+    SYSTEM_PROMPT = (
+        "You are PolyPersona, a helpful and realistic survey respondent. "
+        "Answer faithfully based on the given persona."
+        "ACT OUT THE PERSONA AS REALISTICALLY AS POSSIBLE."
+        "YOU MUST STRICTLY FOLLOW THE INSTRUCTIONS AND FORMAT."
+        "YOU MUST GENERATE NO MORE THAN TWO SENTENCES FOR ANY QUESTION."
+    )
+
+    # short behavioral hints per question type
+    if qtype == "yesno":
+        hint = "Respond with 'Yes.' or 'No.' and add one short reason."
+    elif qtype == "likert":
+        hint = "Respond on a 5-point Likert scale (Strongly Disagree → Strongly Agree) and justify briefly."
+    elif qtype == "agreement":
+        hint = "Indicate your level of agreement and explain in one line."
+    else:
+        hint = "Answer naturally and concisely from the persona's perspective."
+
+    return (
+        f"{SYSTEM_PROMPT}\n\n"
+        f"Persona: {persona_text}\n"
+        f"Question ({qtype or 'open'}): {question}\n"
+        f"{hint}\nAnswer:"
+    )
+
+
 def build_messages(example: Dict[str, Any]) -> List[Dict[str, str]]:
-    """Build chat messages from example for model input."""
+    """Build chat messages from example for model input.
+    Uses proper system/user message format for Qwen chat template.
+    """
     persona = example.get('persona', {})
     question = example.get('question', '')
-    domain = example.get('domain', 'general')
     question_type = example.get('question_type', 'open')
     
-    persona_text = format_persona(persona)
+    persona_text = persona_to_text(persona)
     
-    system_content = SYSTEM_PROMPT_TEMPLATE.format(persona=persona_text)
-    # Fill in the user prompt with domain, question type, and question as they are provided in the dataset.
-    user_content = USER_PROMPT_TEMPLATE.format(
-        domain=domain,
-        question_type=question_type,
-        question=question
+    # Build system message with instructions
+    system_content = (
+        "You are PolyPersona, a helpful and realistic survey respondent. "
+        "Answer faithfully based on the given persona. "
+        "ACT OUT THE PERSONA AS REALISTICALLY AS POSSIBLE. "
+        "YOU MUST STRICTLY FOLLOW THE INSTRUCTIONS AND FORMAT. "
+        "YOU MUST GENERATE NO MORE THAN TWO SENTENCES FOR ANY QUESTION."
+    )
+    
+    # Build user message with persona and question
+    # Short behavioral hints per question type
+    if question_type == "yesno":
+        hint = "Respond with 'Yes.' or 'No.' and add one short reason."
+    elif question_type == "likert":
+        hint = "Respond on a 5-point Likert scale (Strongly Disagree → Strongly Agree) and justify briefly."
+    elif question_type == "agreement":
+        hint = "Indicate your level of agreement and explain in one line."
+    else:
+        hint = "Answer naturally and concisely from the persona's perspective."
+    
+    user_content = (
+        f"Persona: {persona_text}\n"
+        f"Question ({question_type or 'open'}): {question}\n"
+        f"{hint}\nAnswer:"
     )
     
     return [
@@ -136,21 +151,48 @@ def build_messages(example: Dict[str, Any]) -> List[Dict[str, str]]:
 
 
 def build_messages_array(example: Dict[str, Any], generated_response: str) -> List[Dict[str, str]]:
-    """Build messages array in original dataset format."""
+    """Build messages array in dataset format matching training data.
+    Uses the same format as poly_consistent_prompt.py for consistency.
+    """
     persona = example.get('persona', {})
     question = example.get('question', '')
     domain = example.get('domain', 'general')
+    question_type = example.get('question_type', 'open')
     
-    persona_text = format_persona(persona, indent='  ')
+    # Use semicolon-separated persona format
+    persona_text = persona_to_text(persona)
     
     system_message = {
         "role": "system",
         "content": "You are PolyPersona, a survey respondent. Answer faithfully as the given persona."
     }
     
+    # Format user message to match training format
+    # Note: Using newline-separated format for the messages array (for readability in dataset)
+    # but generation uses the semicolon format
+    persona_lines = []
+    p = example.get('persona', {})
+    if 'age' in p: persona_lines.append(f"Age: {p['age']}")
+    if 'gender' in p: persona_lines.append(f"Gender: {p['gender']}")
+    if 'occupation' in p: persona_lines.append(f"Occupation: {p['occupation']}")
+    if 'education' in p: persona_lines.append(f"Education: {p['education']}")
+    if 'region' in p: persona_lines.append(f"Region: {p['region']}")
+    if 'values' in p:
+        vals = p['values'] if isinstance(p['values'], list) else [p['values']]
+        persona_lines.append(f"Values: {', '.join(map(str, vals))}")
+    if 'traits' in p:
+        traits = p['traits'] if isinstance(p['traits'], list) else [p['traits']]
+        persona_lines.append(f"Traits: {', '.join(map(str, traits))}")
+    if 'interests' in p:
+        ints = p['interests'] if isinstance(p['interests'], list) else [p['interests']]
+        persona_lines.append(f"Interests: {', '.join(map(str, ints))}")
+    if 'income_bracket' in p: persona_lines.append(f"Income: {p['income_bracket']}")
+    
+    persona_display = "\n  ".join(persona_lines)
+    
     user_message = {
         "role": "user",
-        "content": f"Persona:\n  {persona_text}\n\nDomain: {domain}\nQuestion: {question}\nAnswer succinctly but realistically."
+        "content": f"Persona:\n  {persona_display}\n\nDomain: {domain}\nQuestion: {question}\nAnswer succinctly but realistically."
     }
     
     assistant_message = {
@@ -169,6 +211,13 @@ def load_model(model_name: str, device: str = "auto"):
     
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     
+    # Set padding side to left for decoder-only models (required for correct batch generation)
+    tokenizer.padding_side = 'left'
+    
+    # Ensure pad token is set (some models don't have one by default)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    
     # Load model in FP16 for efficiency
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
@@ -183,12 +232,32 @@ def load_model(model_name: str, device: str = "auto"):
     return model, tokenizer
 
 
-def extract_answer(text):
-    """Extract answer part from generated text if it contains markers."""
-    # Truncate to only keep content after "### Answer"
-    if "### Answer" in text:
-        return text.split("### Answer", 1)[1].strip()
-    return text
+def extract_answer(text: str) -> str:
+    """Extract answer part from generated text.
+    Since prompt ends with 'Answer:', the model should generate the answer directly.
+    Clean up any remaining prompt fragments.
+    """
+    # The model should generate directly after the prompt
+    # But sometimes it repeats parts of the prompt, so clean that up
+    
+    # Remove any prompt repetition
+    if "Answer:" in text:
+        # Take everything after the last "Answer:"
+        text = text.split("Answer:")[-1].strip()
+    
+    # Remove any markdown headers that might appear
+    if "###" in text:
+        text = text.split("###")[0].strip()
+    
+    # Truncate at newlines (keep only first line/paragraph for conciseness)
+    lines = text.split('\n')
+    # Keep first non-empty line
+    for line in lines:
+        line = line.strip()
+        if line:
+            return line
+    
+    return text.strip()
 
 
 def generate_responses_batch(
@@ -200,27 +269,36 @@ def generate_responses_batch(
     top_p: float = 0.95
 ) -> List[str]:
     """Generate responses for a batch of examples in parallel."""
-    # Build messages for all examples
-    all_messages = [build_messages(ex) for ex in examples]
+    # Build chat messages using proper format for instruct models (especially Qwen)
+    all_messages = []
+    for ex in examples:
+        messages = build_messages(ex)
+        all_messages.append(messages)
     
-    # Apply chat template to all
-    prompts = []
-    for messages in all_messages:
-        prompt = tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True
+    # Apply chat template to each message list
+    # This adds proper special tokens (<|im_start|>, <|im_end|>, etc.) that Qwen expects
+    prompts = [
+        tokenizer.apply_chat_template(
+            messages, 
+            tokenize=False, 
+            add_generation_prompt=True  # Adds <|im_start|>assistant to prompt response
         )
-        prompts.append(prompt)
+        for messages in all_messages
+    ]
     
-    # Tokenize with padding
+    # Tokenize with padding (use larger max_length to avoid truncation)
     inputs = tokenizer(
         prompts,
         return_tensors="pt",
         padding=True,
         truncation=True,
-        max_length=2048
+        max_length=4096  # Increased to avoid truncating prompts
     )
+    
+    # Check if any prompts were truncated
+    if any(len(ids) == 4096 for ids in inputs['input_ids']):
+        print("WARNING: Some prompts were truncated. Consider increasing max_length.")
+    
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
     
     # Generate
@@ -236,12 +314,20 @@ def generate_responses_batch(
         )
     
     # Decode - only the generated part (skip input tokens)
+    # With left-padding, all inputs in batch have same length (includes padding)
+    input_length = inputs['input_ids'].shape[1]
+    
     generated_texts = []
     for i, output in enumerate(outputs):
-        input_length = inputs['input_ids'][i].shape[0]
+        # Skip the entire input (including padding) to get only generated tokens
         generated = tokenizer.decode(output[input_length:], skip_special_tokens=True).strip()
-        # Apply answer extraction
-        generated = extract_answer(generated)
+        
+        # Clean up: take only first line/sentence for conciseness
+        # The model should generate directly after "Answer:"
+        if '\n' in generated:
+            lines = [l.strip() for l in generated.split('\n') if l.strip()]
+            generated = lines[0] if lines else generated
+        
         generated_texts.append(generated)
     
     return generated_texts
@@ -378,7 +464,7 @@ def main():
     parser.add_argument(
         "--output-dir", 
         type=str, 
-        default="./generated_data_2",
+        default="./outputs/experiment_1_synthetic_data",
         help="Directory to save synthetic responses (in original dataset format)"
     )
     parser.add_argument(
@@ -396,19 +482,19 @@ def main():
     parser.add_argument(
         "--temperature", 
         type=float, 
-        default=0.3,
+        default=0.7,
         help="Sampling temperature (higher = more diverse)"
     )
     parser.add_argument(
         "--max-new-tokens", 
         type=int, 
-        default=256,
+        default=150,
         help="Maximum tokens to generate"
     )
     parser.add_argument(
         "--top-p", 
         type=float, 
-        default=0.7,
+        default=0.9,
         help="Nucleus sampling top-p"
     )
     parser.add_argument(
@@ -420,7 +506,7 @@ def main():
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=32,
+        default=72,
         help="Batch size for generation (4-16 recommended depending on model size)"
     )
     parser.add_argument(

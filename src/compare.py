@@ -40,13 +40,13 @@ def main():
     parser.add_argument(
         "--data-dir",
         type=str,
-        default="./generated_data_2",
+        default="./outputs/experiment_1_synthetic_data",
         help="Directory containing reference data"
     )
     parser.add_argument(
         "--eval-dir",
         type=str,
-        default="./evaluation_results_2",
+        default="./outputs/experiment_1_results",
         help="Directory containing prediction data"
     )
     
