@@ -253,12 +253,45 @@ def persona_to_text(persona) -> str:
         return "; ".join(parts)
     return str(persona)
 
+def build_messages_for_generation(persona_text: str, question: str):
+    """Build chat messages for model generation using chat template.
+    
+    Args:
+        persona_text: Formatted persona string
+        question: Question text
+    
+    Returns:
+        List of message dicts for chat template
+    """
+    system_content = (
+        "You are a survey respondent. Answer as a consistent persona given below. "
+        "Be concise and realistic. If the question is multiple-choice, pick the most fitting option and give one short reason."
+    )
+    
+    user_content = (
+        f"Persona: {persona_text}\n"
+        f"Question: {question}\n"
+        f"Answer:"
+    )
+    
+    return [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": user_content}
+    ]
+
+
 SYSTEM_PROMPT = (
     "You are a survey respondent. Answer as a consistent persona given below. "
     "Be concise and realistic. If the question is multiple-choice, pick the most fitting option and give one short reason."
 )
 
+# Keep build_prompt for backwards compatibility (training uses it)
 def build_prompt(persona_text: str, question: str) -> str:
+    """Build raw text prompt.
+    
+    Note: For generation, prefer build_messages_for_generation() instead.
+    This function is kept for training data preparation.
+    """
     return (
         f"{SYSTEM_PROMPT}\n"
         f"Persona: {persona_text}\n"
@@ -732,8 +765,27 @@ from tqdm import tqdm
 # ----------------------------
 # Answer generation function
 # ----------------------------
-def generate_answer(prompt: str, model, tokenizer, cfg):
+def generate_answer(messages: list, model, tokenizer, cfg):
+    """Generate answer using chat template.
+    
+    Args:
+        messages: List of message dicts [{"role": "system", "content": ...}, ...]
+        model: The model
+        tokenizer: The tokenizer
+        cfg: Config object
+    """
+    # Apply chat template
+    prompt = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True
+    )
+    
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    
+    # Store input length for proper decoding
+    input_length = inputs['input_ids'].shape[1]
+    
     with torch.no_grad():
         out = model.generate(
             **inputs,
@@ -743,11 +795,12 @@ def generate_answer(prompt: str, model, tokenizer, cfg):
             do_sample=cfg.do_sample,
             pad_token_id=tokenizer.eos_token_id
         )
-    text = tokenizer.decode(out[0], skip_special_tokens=True)
-    # Extract cleaner part of output
-    if "Answer:" in text:
-        text = text.split("Answer:", 1)[1].strip()
-    return text
+    
+    # Decode only the generated tokens (skip the input)
+    generated_tokens = out[0][input_length:]
+    text = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+    
+    return text.strip()
 
 
 # ----------------------------
@@ -760,10 +813,12 @@ def run_generation(split_data, model, tokenizer, cfg):
     for ex in tqdm(split_data, desc="Generating answers", unit="sample"):
         persona_text = persona_to_text(ex.get(cfg.text_fields["persona"]))
         q = ex.get(cfg.text_fields["question"])
-        prompt = build_prompt(persona_text, q)
+        
+        # Build messages for chat template
+        messages = build_messages_for_generation(persona_text, q)
 
         try:
-            ans = generate_answer(prompt, model, tokenizer, cfg)
+            ans = generate_answer(messages, model, tokenizer, cfg)
         except Exception as e:
             ans = f"[GENERATION_ERROR] {e}"
 

@@ -16,7 +16,7 @@ import warnings
 
 # Suppress warnings
 os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
-os.environ['CUDA_VISIBLE_DEVICES'] = "0,1"
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 warnings.filterwarnings('ignore')
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -71,8 +71,8 @@ def persona_to_text(persona):
     return str(persona)
 
 
-def build_prompt(persona_text, question, qtype=None):
-    """Build prompt matching poly_consistent_prompt.py format.
+def build_messages(persona_text, question, qtype=None):
+    """Build chat messages for TinyLlama chat template.
     
     Args:
         persona_text: Formatted persona string
@@ -80,11 +80,13 @@ def build_prompt(persona_text, question, qtype=None):
         qtype: Question type (yesno, likert, agreement, open)
     
     Returns:
-        Formatted prompt string
+        List of message dicts for chat template
     """
-    SYSTEM_PROMPT = (
+    system_content = (
         "You are PolyPersona, a helpful and realistic survey respondent. "
         "Answer faithfully based on the given persona."
+        "YOU MUST STRICTLY FOLLOW THE INSTRUCTIONS AND FORMAT."
+        "YOU MUST GENERATE NO MORE THAN TWO SENTENCES FOR ANY QUESTION."
     )
 
     # short behavioral hints per question type
@@ -97,17 +99,61 @@ def build_prompt(persona_text, question, qtype=None):
     else:
         hint = "Answer naturally and concisely from the persona's perspective."
 
-    return (
-        f"{SYSTEM_PROMPT}\n\n"
+    user_content = (
         f"Persona: {persona_text}\n"
         f"Question ({qtype or 'open'}): {question}\n"
         f"{hint}\nAnswer:"
     )
+    
+    return [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": user_content}
+    ]
 
 
 def load_model_and_tokenizer(model_dir, base_model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0"):
     """Load base model + LoRA adapter using safetensors format."""
-    print(f"Loading base model: {base_model_name}")
+    # print(f"Loading base model: {base_model_name}")
+    # tokenizer = AutoTokenizer.from_pretrained(base_model_name, use_safetensors=True)
+    # if tokenizer.pad_token is None:
+    #     tokenizer.pad_token = tokenizer.eos_token
+    
+    # # CRITICAL: Set left padding for decoder-only models during batch generation
+    # tokenizer.padding_side = 'left'
+    # print(f"Set tokenizer padding_side to 'left' for decoder-only model")
+    
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    # print(f"Using device: {device}")
+    
+    # # Load base model with safetensors - on GPU if available for compatibility with PEFT
+    # base_model = AutoModelForCausalLM.from_pretrained(
+    #     base_model_name,
+    #     torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+    #     device_map='auto',
+    #     use_safetensors=True  # Force safetensors format
+    # )
+    
+    # # Load LoRA adapter if available
+    # adapter_path = Path(model_dir)
+    # if adapter_path.exists() and (adapter_path / "adapter_config.json").exists():
+    #     print(f"Loading LoRA adapter from: {adapter_path}")
+    #     try:
+    #         model = PeftModel.from_pretrained(base_model, str(adapter_path))
+    #         print("Merging LoRA weights...")
+    #         model = model.merge_and_unload()  # Merge for faster inference
+    #         print("LoRA adapter loaded and merged successfully")
+    #     except Exception as e:
+    #         print(f"ERROR loading adapter: {e}")
+    #         print("Falling back to base model only")
+    #         model = base_model
+    # else:
+    #     print(f"WARNING: No adapter found at {adapter_path}, using base model only")
+    #     model = base_model
+    
+    # model.eval()
+
+    # Load untrained base model for baseline experiment
+    print(f"Loading UNTRAINED base model for baseline: {base_model_name}")
     tokenizer = AutoTokenizer.from_pretrained(base_model_name, use_safetensors=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -119,32 +165,17 @@ def load_model_and_tokenizer(model_dir, base_model_name="TinyLlama/TinyLlama-1.1
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
     
-    # Load base model with safetensors - on GPU if available for compatibility with PEFT
-    base_model = AutoModelForCausalLM.from_pretrained(
+    # Load base model without any fine-tuning
+    model = AutoModelForCausalLM.from_pretrained(
         base_model_name,
         torch_dtype=torch.float16 if device == "cuda" else torch.float32,
         device_map='auto',
-        use_safetensors=True  # Force safetensors format
+        use_safetensors=True
     )
     
-    # Load LoRA adapter if available
-    adapter_path = Path(model_dir)
-    if adapter_path.exists() and (adapter_path / "adapter_config.json").exists():
-        print(f"Loading LoRA adapter from: {adapter_path}")
-        try:
-            model = PeftModel.from_pretrained(base_model, str(adapter_path))
-            print("Merging LoRA weights...")
-            model = model.merge_and_unload()  # Merge for faster inference
-            print("LoRA adapter loaded and merged successfully")
-        except Exception as e:
-            print(f"ERROR loading adapter: {e}")
-            print("Falling back to base model only")
-            model = base_model
-    else:
-        print(f"WARNING: No adapter found at {adapter_path}, using base model only")
-        model = base_model
-    
     model.eval()
+    print("Baseline model loaded successfully (no fine-tuning)")
+
     return model, tokenizer
 
 
@@ -157,19 +188,37 @@ def extract_answer(text):
     return text
 
 
-def generate_responses_batch(prompts, model, tokenizer, max_new_tokens=256):
-    """Generate responses for a batch of prompts in parallel."""
+def generate_responses_batch(messages_list, model, tokenizer, max_new_tokens=256):
+    """Generate responses for a batch of message lists in parallel.
+    
+    Args:
+        messages_list: List of message lists (each is [system_msg, user_msg])
+        model: The model to use for generation
+        tokenizer: The tokenizer
+        max_new_tokens: Maximum tokens to generate
+    """
+    # Apply chat template to each message list
+    prompts = [
+        tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True  # Adds assistant prompt
+        )
+        for messages in messages_list
+    ]
+    
     # Tokenize with LEFT padding for decoder-only models
     inputs = tokenizer(
         prompts,
         return_tensors="pt",
         padding=True,  # Will use left padding due to tokenizer.padding_side='left'
         truncation=True,
-        max_length=1024
+        max_length=4096
     ).to(model.device)
     
-    # Get the length of input for proper response extraction
-    input_lengths = inputs['attention_mask'].sum(dim=1)
+    # CRITICAL: Store the actual input length (entire sequence with padding)
+    # because generate() will append to this same tensor
+    input_length = inputs['input_ids'].shape[1]
     
     with torch.no_grad():
         outputs = model.generate(
@@ -182,11 +231,11 @@ def generate_responses_batch(prompts, model, tokenizer, max_new_tokens=256):
             eos_token_id=tokenizer.eos_token_id,
         )
     
-    # Decode only the generated part (skip input prompt)
+    # Decode only the generated part (skip entire input including padding)
     responses = []
     for i, output in enumerate(outputs):
-        # Skip the input tokens to get only the generated response
-        generated_tokens = output[input_lengths[i]:]
+        # Skip ALL input tokens (padding + actual prompt) to get only new generation
+        generated_tokens = output[input_length:]
         response = tokenizer.decode(generated_tokens, skip_special_tokens=True)
         responses.append(extract_answer(response))
     
@@ -275,15 +324,15 @@ def evaluate_split(data, model, tokenizer, split_name, batch_size=16, skip_berts
     for i in tqdm(range(0, len(valid_data), batch_size), desc=f"Generating {split_name}"):
         batch = valid_data[i:i+batch_size]
         
-        # Build prompts for batch
-        prompts = []
+        # Build messages for batch (using chat template)
+        messages_list = []
         batch_metadata = []
         for ex in batch:
             persona_text = persona_to_text(ex.get('persona', {}))
             question = ex.get('question', '')
             question_type = ex.get('question_type', 'open')
-            prompt = build_prompt(persona_text, question, question_type)
-            prompts.append(prompt)
+            messages = build_messages(persona_text, question, question_type)
+            messages_list.append(messages)
             batch_metadata.append({
                 'id': ex.get('id', ''),
                 'domain': ex.get('domain', 'unknown'),
@@ -292,10 +341,10 @@ def evaluate_split(data, model, tokenizer, split_name, batch_size=16, skip_berts
         
         # Generate predictions for batch
         try:
-            predictions = generate_responses_batch(prompts, model, tokenizer)
+            predictions = generate_responses_batch(messages_list, model, tokenizer)
         except Exception as e:
             print(f"\nBatch generation failed: {e}")
-            predictions = [""] * len(prompts)
+            predictions = [""] * len(messages_list)
         
         # Calculate metrics for each example in batch
         for metadata, prediction in zip(batch_metadata, predictions):
@@ -444,7 +493,7 @@ def main():
                         help="Base model name")
     parser.add_argument("--data-dir", type=str, default="./outputs/experiment_1_synthetic_data",
                         help="Directory containing train/val/test JSON files")
-    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_1_results",
+    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_2_results",
                         help="Directory to save results")
     parser.add_argument("--splits", nargs="+", default=["val", "test"],
                         help="Which splits to evaluate (default: val, test)")

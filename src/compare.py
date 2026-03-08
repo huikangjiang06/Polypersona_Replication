@@ -46,7 +46,7 @@ def main():
     parser.add_argument(
         "--eval-dir",
         type=str,
-        default="./outputs/experiment_1_results",
+        default="./outputs/experiment_2_results",
         help="Directory containing prediction data"
     )
     

@@ -1,7 +1,8 @@
 ### Usage
 - **Build Data**: build_polypersona.py (from the original repo)
 - **Generate Synthetic Response**: response_generation.py
-- **Training Model**: poly.py (from the original repo)
+- **Train Model**: poly.py (from the original repo)
+- **Train Model with consistent prompt**: poly_consistent_prompt.py (poly.py uses different prompt for training and inference)
 - **Evalute Model**: evaluation.py
 - **Compare Referencea and Prediction**: compare.py
 
@@ -98,6 +99,7 @@ def build_prompt(persona_text, question):
 
 ### Experiments
 1. **Experiment 1**
+    - General Try Out
     - Reference Model: Qwen/Qwen2.5-7B-Instruct
     - Generation Hyperparameters:
         - Top-p: 0.9
@@ -115,3 +117,21 @@ def build_prompt(persona_text, question):
         - ./outputs/experiment_1_synthetic_data
         - ./outputs/experiment_1_personaverse
         - ./outputs/experiment_1_results
+
+2. **Experiment 2**
+    - No Training Baseline (Did not train the model)
+    - Reference Model: Qwen/Qwen2.5-7B-Instruct
+    - Generation Hyperparameters:
+        - Top-p: 0.9
+        - Temperature: 0.7
+        - Persona Prompt: Option 1
+        - Input Prompt: Option 1
+    - Student Model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+    - Generation Hyperparameters:
+        - Top-p: 0.9
+        - Temperature: 0.7
+        - Epochs: 3
+        - Persona Prompt: Option 1
+        - Input Prompt: Option 1
+    - Outputs:
+        - ./outputs/experiment_2_results
