@@ -463,13 +463,13 @@ def save_results(overall_results, domain_results, detailed_results, output_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate PolyPersona model")
-    parser.add_argument("--model-dir", type=str, default="./outputs/experiment_1_personaverse",
+    parser.add_argument("--model-dir", type=str, default="./outputs/experiment_4_personaverse",
                         help="Directory containing model checkpoint")
     parser.add_argument("--base-model", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
                         help="Base model name")
-    parser.add_argument("--data-dir", type=str, default="./outputs/experiment_1_synthetic_data",
+    parser.add_argument("--data-dir", type=str, default="./outputs/experiment_4_synthetic_data",
                         help="Directory containing train/val/test JSON files")
-    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_2_results",
+    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_4_results",
                         help="Directory to save results")
     parser.add_argument("--splits", nargs="+", default=["val", "test"],
                         help="Which splits to evaluate (default: val, test)")

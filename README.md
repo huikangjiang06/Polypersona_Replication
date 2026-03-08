@@ -118,35 +118,29 @@ def build_prompt(persona_text, question):
         - ./outputs/experiment_1_results
 
 2. **Experiment 2**
-    - No Training Baseline (Did not train the model)
+    - No Training Baseline (did not train the model)
     - Reference Model: Qwen/Qwen2.5-7B-Instruct
-    - Inference Hyperparameters:
-        - Top-p: 0.9
-        - Temperature: 0.7
-        - Persona Prompt: Option 1
-        - Input Prompt: Option 1
-    - Student Model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
-    - Inference Hyperparameters:
-        - Top-p: 0.9
-        - Temperature: 0.7
-        - Persona Prompt: Option 1
-        - Input Prompt: Option 1
+    - Student Model: TinyLlama/TinyLlama-1.1B-Chat-v1.0 (untrained)
     - Outputs:
         - ./outputs/experiment_2_results
 
 3. **Experiment 3**:
     - Variations in Inference Prompting
     - Reference Model: Qwen/Qwen2.5-7B-Instruct
-    - Generation Hyperparameters:
-        - Top-p: 0.9
-        - Temperature: 0.7
-        - Persona Prompt: Option 1
-        - Input Prompt: Option 3
     - Student Model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
-    - Generation Hyperparameters:
-        - Top-p: 0.9
-        - Temperature: 0.7
-        - Persona Prompt: Option 1
+    - Inference Hyperparameters:
+        - Persona Prompt: Option 3
         - Input Prompt: Option 3
     - Outputs:
         - ./outputs/experiment_3_results
+
+4. **Experiment 4**:
+    - Test for generalization across question domain
+    - Reference Model: Qwen/Qwen2.5-7B-Instruct
+    - Student Model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+        - Trained on only "demographics" "healthcare" "education" and "work_experience"
+    - Outputs: 
+        - ./outputs/experiment_4_synthetic_data (redoed train-val-test split)
+        - ./outputs/experiment_4_personaverse
+        - ./outputs/experiment_4_results
+    

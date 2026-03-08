@@ -6,7 +6,7 @@ HF_CACHE_DIR = '/proj/arise/arise/hj2742'
 os.environ['HF_HOME'] = HF_CACHE_DIR
 os.environ['TRANSFORMERS_CACHE'] = HF_CACHE_DIR
 os.environ['HF_HUB_CACHE'] = HF_CACHE_DIR
-os.environ['CUDA_VISIBLE_DEVICES'] = "0,1"
+os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3"
 
 # Create cache directory if it doesn't exist
 Path(HF_CACHE_DIR).mkdir(parents=True, exist_ok=True)
@@ -21,9 +21,9 @@ import numpy as np
 class Config:
     # Data
     dataset_dir: str = "./data/personaverse"   
-    train_file: str = "./outputs/experiment_1_synthetic_data/train.json"
-    val_file: str = "./outputs/experiment_1_synthetic_data/val.json"
-    test_file: str = "./outputs/experiment_1_synthetic_data/test.json"
+    train_file: str = "./outputs/experiment_4_synthetic_data/train.json"
+    val_file: str = "./outputs/experiment_4_synthetic_data/val.json"
+    test_file: str = "./outputs/experiment_4_synthetic_data/test.json"
     text_fields: dict = None  
 
     # Model
@@ -39,7 +39,7 @@ class Config:
     lora_target_modules: List[str] = None  
 
     # Training
-    output_dir: str = "./outputs/experiment_1_personaverse"
+    output_dir: str = "./outputs/experiment_4_personaverse"
     seed: int = 42
     num_epochs: int = 3
     per_device_train_batch_size: int = 72
