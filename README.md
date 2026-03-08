@@ -144,7 +144,7 @@ def build_prompt(persona_text, question):
         - ./outputs/experiment_4_personaverse
         - ./outputs/experiment_4_results
     
-5. **Experiment 5**:
-    - Tried deocding with temperture = 0.01
+5. **Experiment 5 - 9**:
+    - Tried deocding with temperture = 0.01, 0.2, 0.4, 0.8, 1.0
     - Outputs:
         - ./outputs/experiment_5_results

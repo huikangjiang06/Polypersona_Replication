@@ -164,7 +164,7 @@ def extract_answer(text):
     return text
 
 
-def generate_responses_batch(messages_list, model, tokenizer, max_new_tokens=256):
+def generate_responses_batch(messages_list, model, tokenizer, max_new_tokens=256, temperature=0.2, top_p=0.9, max_length=4096):
     """Generate responses for a batch of message lists in parallel.
     
     Args:
@@ -172,6 +172,9 @@ def generate_responses_batch(messages_list, model, tokenizer, max_new_tokens=256
         model: The model to use for generation
         tokenizer: The tokenizer
         max_new_tokens: Maximum tokens to generate
+        temperature: Sampling temperature
+        top_p: Nucleus sampling probability
+        max_length: Maximum length for tokenization
     """
     # Apply chat template to each message list
     prompts = [
@@ -189,7 +192,7 @@ def generate_responses_batch(messages_list, model, tokenizer, max_new_tokens=256
         return_tensors="pt",
         padding=True,  # Will use left padding due to tokenizer.padding_side='left'
         truncation=True,
-        max_length=4096
+        max_length=max_length
     ).to(model.device)
     
     # CRITICAL: Store the actual input length (entire sequence with padding)
@@ -200,8 +203,8 @@ def generate_responses_batch(messages_list, model, tokenizer, max_new_tokens=256
         outputs = model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
-            temperature=0.01,
-            top_p=0.9,
+            temperature=temperature,
+            top_p=top_p,
             do_sample=True,
             pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
             eos_token_id=tokenizer.eos_token_id,
@@ -281,11 +284,12 @@ def calculate_bertscore_batch(references, predictions, model_type='bert-base-unc
         return {'precision': 0.0, 'recall': 0.0, 'f1': 0.0}
 
 
-def evaluate_split(data, model, tokenizer, split_name, batch_size=16, skip_bertscore=False):
+def evaluate_split(data, model, tokenizer, split_name, batch_size=16, skip_bertscore=False, max_new_tokens=256, temperature=0.2, top_p=0.9, max_length=4096):
     """Evaluate model on a data split with batch generation."""
     print(f"\n{'='*60}")
     print(f"Evaluating {split_name} set ({len(data)} examples)")
     print(f"Using batch size: {batch_size} for generation")
+    print(f"Generation params: max_new_tokens={max_new_tokens}, temperature={temperature}, top_p={top_p}, max_length={max_length}")
     print(f"{'='*60}")
     
     results = []
@@ -317,7 +321,7 @@ def evaluate_split(data, model, tokenizer, split_name, batch_size=16, skip_berts
         
         # Generate predictions for batch
         try:
-            predictions = generate_responses_batch(messages_list, model, tokenizer)
+            predictions = generate_responses_batch(messages_list, model, tokenizer, max_new_tokens, temperature, top_p, max_length)
         except Exception as e:
             print(f"\nBatch generation failed: {e}")
             predictions = [""] * len(messages_list)
@@ -428,6 +432,57 @@ def print_results(overall, domain_metrics):
         print(f"  BERTScore F1: {metrics['bertscore_f1']:.4f}")
 
 
+def generate_comparison_csv(original_data, detailed_results, split_name, output_dir):
+    """Generate comparison CSV matching compare.py functionality.
+    
+    Args:
+        original_data: List of original data items with messages
+        detailed_results: List of prediction results
+        split_name: Name of the split (e.g., 'test', 'val')
+        output_dir: Directory to save comparison CSV
+    """
+    output_dir = Path(output_dir)
+    
+    # Create dictionaries for quick lookup
+    reference_dict = {}
+    user_context_dict = {}
+    
+    for item in original_data:
+        item_id = item['id']
+        reference_dict[item_id] = item.get('reference', '')
+        
+        # Extract user context from messages
+        messages = item.get('messages', [])
+        user_context = ''
+        if len(messages) > 1 and messages[1].get('role') == 'user':
+            user_context = messages[1].get('content', '')
+        user_context_dict[item_id] = user_context
+    
+    # Create prediction dictionary
+    prediction_dict = {item['id']: item.get('prediction', '') for item in detailed_results}
+    
+    # Match references and predictions by ID
+    rows = []
+    for item_id in reference_dict.keys():
+        user_context = user_context_dict.get(item_id, '')
+        reference = reference_dict.get(item_id, '')
+        prediction = prediction_dict.get(item_id, '')
+        
+        rows.append({
+            'id': item_id,
+            'user_context': user_context,
+            'reference': reference,
+            'prediction': prediction
+        })
+    
+    # Create DataFrame and save
+    df = pd.DataFrame(rows)
+    output_path = output_dir / f"compare_{split_name}.csv"
+    df.to_csv(output_path, index=False, encoding='utf-8', lineterminator='\n')
+    
+    print(f"Saved comparison CSV to: {output_path} ({len(df)} rows)")
+
+
 def save_results(overall_results, domain_results, detailed_results, output_dir):
     """Save results to files."""
     output_dir = Path(output_dir)
@@ -469,7 +524,7 @@ def main():
                         help="Base model name")
     parser.add_argument("--data-dir", type=str, default="./outputs/experiment_1_synthetic_data",
                         help="Directory containing train/val/test JSON files")
-    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_5_results",
+    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_1_results",
                         help="Directory to save results")
     parser.add_argument("--splits", nargs="+", default=["val", "test"],
                         help="Which splits to evaluate (default: val, test)")
@@ -479,6 +534,14 @@ def main():
                         help="Batch size for generation and evaluation (16-32 recommended)")
     parser.add_argument("--skip-bertscore", action="store_true",
                         help="Skip BERTScore calculation (useful if torch<2.6)")
+    parser.add_argument("--max-new-tokens", type=int, default=256,
+                        help="Maximum number of tokens to generate (default: 256)")
+    parser.add_argument("--temperature", type=float, default=0.7,
+                        help="Sampling temperature (default: 0.7)")
+    parser.add_argument("--top-p", type=float, default=0.9,
+                        help="Nucleus sampling probability (default: 0.9)")
+    parser.add_argument("--max-length", type=int, default=4096,
+                        help="Maximum length for tokenization (default: 4096)")
     
     args = parser.parse_args()
     
@@ -489,6 +552,7 @@ def main():
     overall_results = []
     domain_results = {}
     detailed_results = {}
+    original_data_by_split = {}  # Store original data for comparison CSVs
     
     for split in args.splits:
         data_path = Path(args.data_dir) / f"{split}.json"
@@ -501,10 +565,17 @@ def main():
         if args.max_examples:
             data = data[:args.max_examples]
         
+        # Store original data for comparison
+        original_data_by_split[split] = data
+        
         # Evaluate
         overall, domain_metrics, results = evaluate_split(
             data, model, tokenizer, split, batch_size=args.batch_size,
-            skip_bertscore=args.skip_bertscore
+            skip_bertscore=args.skip_bertscore,
+            max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature,
+            top_p=args.top_p,
+            max_length=args.max_length
         )
         
         overall_results.append(overall)
@@ -516,6 +587,19 @@ def main():
     
     # Save all results
     save_results(overall_results, domain_results, detailed_results, args.output_dir)
+    
+    # Generate comparison CSVs for each split
+    print(f"\n{'='*60}")
+    print("GENERATING COMPARISON CSVs")
+    print(f"{'='*60}")
+    for split in args.splits:
+        if split in original_data_by_split and split in detailed_results:
+            generate_comparison_csv(
+                original_data_by_split[split],
+                detailed_results[split],
+                split,
+                args.output_dir
+            )
     
     print(f"\n{'='*60}")
     print("EVALUATION COMPLETE")
