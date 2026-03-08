@@ -518,29 +518,29 @@ def save_results(overall_results, domain_results, detailed_results, output_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate PolyPersona model")
-    parser.add_argument("--model-dir", type=str, default="./outputs/experiment_1_personaverse",
+    parser.add_argument("--model-dir", type=str, default="./outputs/experiment_4_personaverse",
                         help="Directory containing model checkpoint")
     parser.add_argument("--base-model", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
                         help="Base model name")
-    parser.add_argument("--data-dir", type=str, default="./outputs/experiment_1_synthetic_data",
+    parser.add_argument("--data-dir", type=str, default="./outputs/experiment_4_synthetic_data",
                         help="Directory containing train/val/test JSON files")
-    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_1_results",
+    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_4_results",
                         help="Directory to save results")
     parser.add_argument("--splits", nargs="+", default=["val", "test"],
                         help="Which splits to evaluate (default: val, test)")
     parser.add_argument("--max-examples", type=int, default=None,
                         help="Maximum examples per split (for testing)")
-    parser.add_argument("--batch-size", type=int, default=72,
+    parser.add_argument("--batch-size", type=int, default=32,
                         help="Batch size for generation and evaluation (16-32 recommended)")
     parser.add_argument("--skip-bertscore", action="store_true",
                         help="Skip BERTScore calculation (useful if torch<2.6)")
-    parser.add_argument("--max-new-tokens", type=int, default=256,
-                        help="Maximum number of tokens to generate (default: 256)")
+    parser.add_argument("--max-new-tokens", type=int, default=128,
+                        help="Maximum number of tokens to generate (default: 128)")
     parser.add_argument("--temperature", type=float, default=0.7,
                         help="Sampling temperature (default: 0.7)")
     parser.add_argument("--top-p", type=float, default=0.9,
                         help="Nucleus sampling probability (default: 0.9)")
-    parser.add_argument("--max-length", type=int, default=4096,
+    parser.add_argument("--max-length", type=int, default=256,
                         help="Maximum length for tokenization (default: 4096)")
     
     args = parser.parse_args()

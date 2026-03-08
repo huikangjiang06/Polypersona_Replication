@@ -42,8 +42,8 @@ class Config:
     output_dir: str = "./outputs/experiment_4_personaverse"
     seed: int = 42
     num_epochs: int = 3
-    per_device_train_batch_size: int = 72
-    per_device_eval_batch_size: int = 72
+    per_device_train_batch_size: int = 64
+    per_device_eval_batch_size: int = 64
     gradient_accumulation_steps: int = 1
     learning_rate: float = 2e-4
     weight_decay: float = 1e-3

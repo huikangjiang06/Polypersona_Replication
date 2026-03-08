@@ -87,7 +87,6 @@ def build_prompt(persona_text: str, question: str, qtype: str = None) -> str:
         "Answer faithfully based on the given persona."
         "ACT OUT THE PERSONA AS REALISTICALLY AS POSSIBLE."
         "YOU MUST STRICTLY FOLLOW THE INSTRUCTIONS AND FORMAT."
-        "YOU MUST GENERATE NO MORE THAN TWO SENTENCES FOR ANY QUESTION."
     )
 
     # short behavioral hints per question type
@@ -124,7 +123,8 @@ def build_messages(example: Dict[str, Any]) -> List[Dict[str, str]]:
         "Answer faithfully based on the given persona. "
         "ACT OUT THE PERSONA AS REALISTICALLY AS POSSIBLE. "
         "YOU MUST STRICTLY FOLLOW THE INSTRUCTIONS AND FORMAT. "
-        "YOU MUST GENERATE NO MORE THAN TWO SENTENCES FOR ANY QUESTION."
+        "YOU MUST DIRECTLY ANSWER THE QUESTION IN THE DESIRED FORMAT AND EXPLAIN IN AROUND FIVE TO SEVEN SENTENCES."
+        "BE DETAILED AND NARRATIVE IN YOUR RESPONSES."
     )
     
     # Build user message with persona and question
@@ -464,7 +464,7 @@ def main():
     parser.add_argument(
         "--output-dir", 
         type=str, 
-        default="./outputs/experiment_1_synthetic_data",
+        default="./outputs/experiment_11_synthetic_data",
         help="Directory to save synthetic responses (in original dataset format)"
     )
     parser.add_argument(
@@ -482,19 +482,19 @@ def main():
     parser.add_argument(
         "--temperature", 
         type=float, 
-        default=0.7,
+        default=0.01,
         help="Sampling temperature (higher = more diverse)"
     )
     parser.add_argument(
         "--max-new-tokens", 
         type=int, 
-        default=150,
+        default=256,
         help="Maximum tokens to generate"
     )
     parser.add_argument(
         "--top-p", 
         type=float, 
-        default=0.9,
+        default=0.3,
         help="Nucleus sampling top-p"
     )
     parser.add_argument(
@@ -506,7 +506,7 @@ def main():
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=72,
+        default=64,
         help="Batch size for generation (4-16 recommended depending on model size)"
     )
     parser.add_argument(

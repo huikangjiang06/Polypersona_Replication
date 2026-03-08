@@ -138,13 +138,30 @@ def build_prompt(persona_text, question):
     - Test for generalization across question domain
     - Reference Model: Qwen/Qwen2.5-7B-Instruct
     - Student Model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
-        - Trained on only "demographics" "healthcare" "education" and "work_experience"
+        - Trained on only "demographics" "healthcare" "education" "work_experience" "technology","consumer_preferences","finance"
     - Outputs: 
         - ./outputs/experiment_4_synthetic_data (redoed train-val-test split)
         - ./outputs/experiment_4_personaverse
         - ./outputs/experiment_4_results
+    - 
     
 5. **Experiment 5 - 9**:
     - Tried deocding with temperture = 0.01, 0.2, 0.4, 0.8, 1.0
     - Outputs:
         - ./outputs/experiment_5_results
+
+6. **Experiment 10**:
+    - Controlled reference length to one sentence by prompting.
+    - Outputs:
+        - ./outputs/experiment_10_synthetic_data
+        - ./outputs/experiment_10_personaverse
+        - ./outputs/experiment_10_results
+
+7. **Experiment 11**:
+    - Extended reference length to around 5 sentences by prompting
+        - ./outputs/experiment_11_synthetic_data
+        - ./outputs/experiment_11_personaverse
+        - ./outputs/experiment_11_results
+    - This experiment has the BEST results, BUT most likely because:
+        - Longer responses catches more universal semantics, not the specific wording.
+        - Longer responses give the models more training data, so it better distills the teacher model
