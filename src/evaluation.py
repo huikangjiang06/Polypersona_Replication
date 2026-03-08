@@ -113,47 +113,7 @@ def build_messages(persona_text, question, qtype=None):
 
 def load_model_and_tokenizer(model_dir, base_model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0"):
     """Load base model + LoRA adapter using safetensors format."""
-    # print(f"Loading base model: {base_model_name}")
-    # tokenizer = AutoTokenizer.from_pretrained(base_model_name, use_safetensors=True)
-    # if tokenizer.pad_token is None:
-    #     tokenizer.pad_token = tokenizer.eos_token
-    
-    # # CRITICAL: Set left padding for decoder-only models during batch generation
-    # tokenizer.padding_side = 'left'
-    # print(f"Set tokenizer padding_side to 'left' for decoder-only model")
-    
-    # device = "cuda" if torch.cuda.is_available() else "cpu"
-    # print(f"Using device: {device}")
-    
-    # # Load base model with safetensors - on GPU if available for compatibility with PEFT
-    # base_model = AutoModelForCausalLM.from_pretrained(
-    #     base_model_name,
-    #     torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-    #     device_map='auto',
-    #     use_safetensors=True  # Force safetensors format
-    # )
-    
-    # # Load LoRA adapter if available
-    # adapter_path = Path(model_dir)
-    # if adapter_path.exists() and (adapter_path / "adapter_config.json").exists():
-    #     print(f"Loading LoRA adapter from: {adapter_path}")
-    #     try:
-    #         model = PeftModel.from_pretrained(base_model, str(adapter_path))
-    #         print("Merging LoRA weights...")
-    #         model = model.merge_and_unload()  # Merge for faster inference
-    #         print("LoRA adapter loaded and merged successfully")
-    #     except Exception as e:
-    #         print(f"ERROR loading adapter: {e}")
-    #         print("Falling back to base model only")
-    #         model = base_model
-    # else:
-    #     print(f"WARNING: No adapter found at {adapter_path}, using base model only")
-    #     model = base_model
-    
-    # model.eval()
-
-    # Load untrained base model for baseline experiment
-    print(f"Loading UNTRAINED base model for baseline: {base_model_name}")
+    print(f"Loading base model: {base_model_name}")
     tokenizer = AutoTokenizer.from_pretrained(base_model_name, use_safetensors=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -165,16 +125,32 @@ def load_model_and_tokenizer(model_dir, base_model_name="TinyLlama/TinyLlama-1.1
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
     
-    # Load base model without any fine-tuning
-    model = AutoModelForCausalLM.from_pretrained(
+    # Load base model with safetensors - on GPU if available for compatibility with PEFT
+    base_model = AutoModelForCausalLM.from_pretrained(
         base_model_name,
         torch_dtype=torch.float16 if device == "cuda" else torch.float32,
         device_map='auto',
-        use_safetensors=True
+        use_safetensors=True  # Force safetensors format
     )
     
+    # Load LoRA adapter if available
+    adapter_path = Path(model_dir)
+    if adapter_path.exists() and (adapter_path / "adapter_config.json").exists():
+        print(f"Loading LoRA adapter from: {adapter_path}")
+        try:
+            model = PeftModel.from_pretrained(base_model, str(adapter_path))
+            print("Merging LoRA weights...")
+            model = model.merge_and_unload()  # Merge for faster inference
+            print("LoRA adapter loaded and merged successfully")
+        except Exception as e:
+            print(f"ERROR loading adapter: {e}")
+            print("Falling back to base model only")
+            model = base_model
+    else:
+        print(f"WARNING: No adapter found at {adapter_path}, using base model only")
+        model = base_model
+    
     model.eval()
-    print("Baseline model loaded successfully (no fine-tuning)")
 
     return model, tokenizer
 

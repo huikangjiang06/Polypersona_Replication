@@ -101,16 +101,15 @@ def build_prompt(persona_text, question):
 1. **Experiment 1**
     - General Try Out
     - Reference Model: Qwen/Qwen2.5-7B-Instruct
-    - Generation Hyperparameters:
+    - Inference Hyperparameters:
         - Top-p: 0.9
         - Temperature: 0.7
         - Persona Prompt: Option 1
         - Input Prompt: Option 1
     - Student Model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
-    - Generation Hyperparameters:
+    - Inference Hyperparameters:
         - Top-p: 0.9
         - Temperature: 0.7
-        - Epochs: 3
         - Persona Prompt: Option 1
         - Input Prompt: Option 1
     - Outputs:
@@ -121,17 +120,33 @@ def build_prompt(persona_text, question):
 2. **Experiment 2**
     - No Training Baseline (Did not train the model)
     - Reference Model: Qwen/Qwen2.5-7B-Instruct
-    - Generation Hyperparameters:
+    - Inference Hyperparameters:
         - Top-p: 0.9
         - Temperature: 0.7
         - Persona Prompt: Option 1
         - Input Prompt: Option 1
     - Student Model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
-    - Generation Hyperparameters:
+    - Inference Hyperparameters:
         - Top-p: 0.9
         - Temperature: 0.7
-        - Epochs: 3
         - Persona Prompt: Option 1
         - Input Prompt: Option 1
     - Outputs:
         - ./outputs/experiment_2_results
+
+3. **Experiment 3**:
+    - Variations in Inference Prompting
+    - Reference Model: Qwen/Qwen2.5-7B-Instruct
+    - Generation Hyperparameters:
+        - Top-p: 0.9
+        - Temperature: 0.7
+        - Persona Prompt: Option 1
+        - Input Prompt: Option 3
+    - Student Model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+    - Generation Hyperparameters:
+        - Top-p: 0.9
+        - Temperature: 0.7
+        - Persona Prompt: Option 1
+        - Input Prompt: Option 3
+    - Outputs:
+        - ./outputs/experiment_3_results
