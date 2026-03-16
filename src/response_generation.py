@@ -478,7 +478,7 @@ def main():
     parser.add_argument(
         "--temperature", 
         type=float, 
-        default=0.01,
+        default=0.7,
         help="Sampling temperature (higher = more diverse)"
     )
     parser.add_argument(
@@ -490,7 +490,7 @@ def main():
     parser.add_argument(
         "--top-p", 
         type=float, 
-        default=0.3,
+        default=0.9,
         help="Nucleus sampling top-p"
     )
     parser.add_argument(

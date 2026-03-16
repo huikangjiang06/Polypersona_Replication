@@ -84,9 +84,9 @@ def build_messages(persona_text, question, qtype=None):
     """
     system_content = (
         "You are PolyPersona, a helpful and realistic survey respondent. "
-        "Answer faithfully based on the given persona."
-        "YOU MUST STRICTLY FOLLOW THE INSTRUCTIONS AND FORMAT."
-        "YOU MUST GENERATE NO MORE THAN TWO SENTENCES FOR ANY QUESTION."
+        #"Answer faithfully based on the given persona."
+        #"YOU MUST STRICTLY FOLLOW THE INSTRUCTIONS AND FORMAT."
+        #"YOU MUST GENERATE NO MORE THAN TWO SENTENCES FOR ANY QUESTION."
     )
 
     # short behavioral hints per question type
@@ -100,7 +100,7 @@ def build_messages(persona_text, question, qtype=None):
         hint = "Answer naturally and concisely from the persona's perspective."
 
     user_content = (
-        f"Persona: {persona_text}\n"
+        #f"Persona: {persona_text}\n"
         f"Question ({qtype or 'open'}): {question}\n"
         f"{hint}\nAnswer:"
     )
@@ -518,13 +518,13 @@ def save_results(overall_results, domain_results, detailed_results, output_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate PolyPersona model")
-    parser.add_argument("--model-dir", type=str, default="./outputs/experiment_12_personaverse",
+    parser.add_argument("--model-dir", type=str, default="./outputs/experiment_1_personaverse",
                         help="Directory containing model checkpoint")
     parser.add_argument("--base-model", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
                         help="Base model name")
-    parser.add_argument("--data-dir", type=str, default="./outputs/experiment_12_synthetic_data",
+    parser.add_argument("--data-dir", type=str, default="./outputs/experiment_1_synthetic_data",
                         help="Directory containing train/val/test JSON files")
-    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_12_results",
+    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_13_results",
                         help="Directory to save results")
     parser.add_argument("--splits", nargs="+", default=["val", "test"],
                         help="Which splits to evaluate (default: val, test)")

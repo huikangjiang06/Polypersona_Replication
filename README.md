@@ -177,3 +177,8 @@ def build_prompt(persona_text, question):
     - Quick Sanity Check:
         - Experiment 12 train.json has 88008 words in all of its references
         - Experiment 1 train.json has  80893 words in all of its references
+
+9. **Experiment 13**:
+    - Another way to evaluate the same thing. 
+    - We train the model regularly as experiment 1, but evaluate without personality conditioning
+    -
