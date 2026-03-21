@@ -21,13 +21,13 @@ import numpy as np
 class Config:
     # Data
     dataset_dir: str = "./data/personaverse"   
-    train_file: str = "./outputs/experiment_12_synthetic_data/train.json"
-    val_file: str = "./outputs/experiment_12_synthetic_data/val.json"
-    test_file: str = "./outputs/experiment_12_synthetic_data/test.json"
+    train_file: str = "./outputs/experiment_1_synthetic_data/train.json"
+    val_file: str = "./outputs/experiment_1_synthetic_data/val.json"
+    test_file: str = "./outputs/experiment_1_synthetic_data/test.json"
     text_fields: dict = None  
 
     # Model
-    base_model: str = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"  
+    base_model: str = "Qwen/Qwen2.5-1.5B-Instruct"  
     torch_dtype: str = "auto"
     use_4bit: bool = False
 
@@ -39,11 +39,11 @@ class Config:
     lora_target_modules: List[str] = None  
 
     # Training
-    output_dir: str = "./outputs/experiment_12_personaverse"
+    output_dir: str = "./outputs/experiment_14_personaverse"
     seed: int = 42
     num_epochs: int = 3
-    per_device_train_batch_size: int = 72
-    per_device_eval_batch_size: int = 72
+    per_device_train_batch_size: int = 32
+    per_device_eval_batch_size: int = 32
     gradient_accumulation_steps: int = 1
     learning_rate: float = 2e-4
     weight_decay: float = 1e-3
@@ -119,12 +119,13 @@ def build_messages_for_generation(persona_text, question, qtype=None):
     ]
 
 
-# Keep build_prompt for backwards compatibility (training uses it)
+# Keep build_prompt for backwards compatibility
 def build_prompt(persona_text, question, qtype=None):
-    """Constructs the system–user prompt with qtype hints.
+    """Constructs the system–user prompt with qtype hints (plain text format).
     
-    Note: For generation, prefer build_messages_for_generation() instead.
-    This function is kept for training data preparation.
+    DEPRECATED: Training now uses chat templates internally.
+    For generation, use build_messages_for_generation() instead.
+    This function is kept for backwards compatibility only.
     """
     SYSTEM_PROMPT = (
         "You are PolyPersona, a helpful and realistic survey respondent. "
@@ -538,6 +539,7 @@ def maybe_finetune_with_lora(model, tokenizer, train_data, val_data, cfg):
             return str(persona)
         
         def build_prompt(persona_text, question, qtype=None):
+            """Build chat-templated prompt for training (matches generation format)."""
             SYSTEM_PROMPT = (
                 "You are PolyPersona, a helpful and realistic survey respondent. "
                 "Answer faithfully based on the given persona."
@@ -552,11 +554,23 @@ def maybe_finetune_with_lora(model, tokenizer, train_data, val_data, cfg):
                 hint = "Answer naturally and concisely from the persona's perspective."
             pt = (persona_text or "").strip()
             q  = (question or "").strip()
-            return (
-                f"{SYSTEM_PROMPT}\n\n"
+            
+            user_content = (
                 f"Persona: {pt}\n"
                 f"Question ({qtype or 'open'}): {q}\n"
                 f"{hint}\nAnswer:"
+            )
+            
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_content}
+            ]
+            
+            # Apply chat template (tokenizer is accessible from outer scope)
+            return tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True
             )
         return persona_to_text, build_prompt
 

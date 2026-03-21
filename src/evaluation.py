@@ -16,7 +16,7 @@ import warnings
 
 # Suppress warnings
 os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
-os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3"  # Adjust based on available GPUs
 warnings.filterwarnings('ignore')
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -518,13 +518,13 @@ def save_results(overall_results, domain_results, detailed_results, output_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate PolyPersona model")
-    parser.add_argument("--model-dir", type=str, default="./outputs/experiment_1_personaverse",
+    parser.add_argument("--model-dir", type=str, default="./outputs/experiment_14_personaverse",
                         help="Directory containing model checkpoint")
-    parser.add_argument("--base-model", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    parser.add_argument("--base-model", type=str, default="Qwen/Qwen2.5-1.5B-Instruct",
                         help="Base model name")
     parser.add_argument("--data-dir", type=str, default="./outputs/experiment_1_synthetic_data",
                         help="Directory containing train/val/test JSON files")
-    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_13_results",
+    parser.add_argument("--output-dir", type=str, default="./outputs/experiment_14_results",
                         help="Directory to save results")
     parser.add_argument("--splits", nargs="+", default=["val", "test"],
                         help="Which splits to evaluate (default: val, test)")
