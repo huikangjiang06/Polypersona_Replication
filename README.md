@@ -182,3 +182,40 @@ def build_prompt(persona_text, question):
     - Another way to evaluate the same thing. 
     - We train the model regularly as experiment 1, but evaluate without personality conditioning
     -
+
+### Multilevel Regression and Poststratification (MrP)
+
+**NEW**: This repository now includes an implementation of Multilevel Regression and Poststratification (MrP) for aggregating survey responses to population-level estimates.
+
+MrP is a statistical method that combines:
+- **Multilevel Regression**: Hierarchical models accounting for demographic structure
+- **Poststratification**: Reweighting estimates based on known population demographics
+
+**Key Features**:
+- Aggregate synthetic persona-based responses to population level
+- Adjust for non-representative sampling bias
+- Estimate responses for all demographic subgroups
+- Compare naive vs. demographically-adjusted estimates
+
+**Quick Start**:
+```bash
+# Install dependencies
+pip install -r MRP/requirements.txt
+
+# Run example analysis
+cd MRP
+python example_workflow.py
+```
+
+**Documentation**:
+- `MRP/README.md` - Complete MrP usage guide
+- `MRP/INTEGRATION_GUIDE.md` - Integration with Polypersona project
+- `MRP/example_workflow.py` - Complete working example
+
+**Use Cases**:
+1. Aggregate persona-conditioned survey predictions to population estimates
+2. Validate persona diversity against census demographics  
+3. Compare teacher vs student models at population level
+4. Evaluate fairness across demographic subgroups
+
+See `MRP/README.md` for detailed documentation and examples.
